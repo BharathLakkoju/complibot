@@ -1,0 +1,18 @@
+---
+description: Next.js 16 / React 19 / TypeScript / Tailwind 4 conventions for apps/web (hosted on Vercel)
+globs: apps/web/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+- Next.js 16 App Router with Turbopack (default). Deploy to **Vercel** (PRD Q-02, recommended default). The API base URL comes from `NEXT_PUBLIC_API_URL`, and the WS URL is derived from it (`/v1/reviews/{id}/ws`).
+- Server Components by default. Add `"use client"` only for interactivity (WS, decisions, document pane).
+- `params` and `searchParams` are async (`await params`). Route-level auth redirects go in `proxy.ts` (Next 16 renamed `middleware.ts` to `proxy`). Real authorization stays in the API.
+- Realtime: a single `useReviewSocket(reviewId)` hook with a reducer keyed by `seq`. It sends `client.hello{lastSeq}`, handles `replay.begin/end` and `resync.required` (shows "Reloading the latest state…"), treats the connection as dead after 2× `heartbeatMs`, and backs off 1 s → 30 s with jitter. While disconnected the UI is **read-only** ("Reconnecting, changes are paused"), drafts are kept, and after reconnect it shows a "While you were away" summary.
+- Types for findings and events are imported from generated `@repo/schemas`. Don't redefine them.
+- React 19: `useOptimistic` for decisions (reconcile by `clientMsgId`), `useActionState` for forms. No `forwardRef` on new components.
+- Tailwind 4: CSS-first `@import "tailwindcss";` and `@theme` tokens from `docs/DESIGN-SYSTEM.md`. No `tailwind.config.js`, and no hard-coded colours.
+- **Finding card states** follow DESIGN-SYSTEM §7.1. A streaming draft shows skeleton fields and the label **"Writing…"**, with decision controls disabled ("Finding still being written"). Published findings start as `open` ("Needs decision").
+- **Confidence** is a 3-segment meter with a band and a reason, never a percentage. Show "Uncalibrated estimate" until calibrated. **Low** gets a dashed border, "Needs careful review", the rationale expanded, and stays inside its severity group. Accept is enabled only after "Show in document" has been used. System flags render as reason chips, distinct from the human "Escalated to <name>".
+- **Decisions**: Accept `A`, Reject `R` (reason), Edit `E` (severity change needs a reason), Escalate `X` (assignee + reason). Undo `Z` within 8 s; after that, "Change decision" needs a reason. Conflict banner offers [Keep theirs], plus [Override…] for the **Owner only**. Viewers see disabled controls with the reason.
+- Show the disclaimer on the findings panel and the report, and the "Demo only" notice on first run and on the upload screen.
+- Accessibility per DESIGN-SYSTEM §9: batched polite announcements (≤ 1 per 5 s), shortcuts that can be turned off, colour independence, 0 axe contrast violations.
+- ESLint (flat config) plus `tsc --noEmit`. `next lint` was removed in Next 16.

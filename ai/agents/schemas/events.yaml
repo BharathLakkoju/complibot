@@ -1,0 +1,77 @@
+# WebSocket event contract v1. Adopted from input/engineering.md §2.3 (PRD §13, Q-08); this file is the
+# machine-readable source copied to packages/schemas/events.yaml for codegen.
+endpoint: "wss://<api-host>/v1/reviews/{reviewId}/ws"
+
+envelope:
+  v: 1                  # breaking change => v: 2; server supports N and N-1 (older => error unsupported_version)
+  type: string
+  id: string            # ULID, unique per event
+  seq: integer          # per-review monotonic, gap-free; present on every PERSISTED server event, absent on ephemeral
+  reviewId: string
+  ts: RFC3339 UTC
+  correlationId: string # optional; echoes the client's clientMsgId when responding
+  payload: object
+
+heartbeat: { heartbeatMs: 15000, deadAfterMs: 30000, albIdleTimeoutS: 60 }   # NFR: 15 s / dead after 30 s; ALB idle > heartbeat
+replayWindow: { maxEvents: 5000, maxAgeHours: 24 }                          # beyond either => resync.required
+reconnectBackoff: { initialMs: 1000, maxMs: 30000, jitter: full }
+
+client_to_server:
+  client.hello:     { token: string, lastSeq: "integer?", clientVersion: string }   # first message, within 5 s; JWT never in the URL
+  client.ack:       { seq: integer }                                                # lets server trim per-socket buffers
+  client.ping:      { nonce: string }
+  presence.update:  { state: "viewing|idle", focusFindingId: "string?" }
+  decision.submit:
+    clientMsgId: string          # idempotency key (dedupe 24 h)
+    findingId: string
+    action: "accept|reject|edit|escalate|reopen|override"
+    findingVersion: integer      # optimistic concurrency
+    reason: "string?"            # required (>= 10 chars) for reject, escalate, reopen (except 8 s self-undo), override, and edit when severity changes
+    edits: "{ title?, severity?, rationale?, remediation? }?"   # action=edit, or override that edits
+    assigneeId: "string?"        # required for escalate
+    overrideAction: "accept|reject|edit|escalate?"               # required for override (Owner only)
+  comment.add:      { clientMsgId: string, findingId: string, body: "string (<= 2000)" }
+
+server_to_client:
+  # ---- session / resume (ephemeral, no seq)
+  server.welcome:    { userId: string, serverVersion: string, currentSeq: integer, heartbeatMs: integer, role: "owner|reviewer|viewer" }
+  replay.begin:      { fromSeq: integer, toSeq: integer }
+  replay.end:        { toSeq: integer }
+  resync.required:   { reason: "gap_too_large|schema_changed", snapshotUrl: string }   # REST snapshot
+  server.heartbeat:  { serverTime: string, currentSeq: integer }
+  server.pong:       { nonce: string }
+  error:             { code: "auth_failed|auth_expired|forbidden|rate_limited|bad_message|unsupported_version|internal", message: string, retryable: boolean, retryAfterMs: "integer?", fatal: boolean }
+  # ---- pipeline
+  review.status:     # PERSISTED. Replaces the old review.started/stage_changed/progress/completed/failed events.
+    status: "queued|running|completed|failed|cancelled"
+    progress: { stage: "scoping|ingest|map|assess|verify|remediate", done: integer, total: integer }
+    findingsSoFar: "integer?"         # additive field (not in engineering §2.3)
+    discardedCount: "integer?"        # additive: findings dropped by the citation check (AC-AI-03)
+    unprocessedControls: "integer?"   # additive: budget/deadline cut-offs, listed in report coverage (AC-AI-17)
+    failure: "{ stage, errorCode, retryable }?"
+  finding.delta:     { draftId: string, controlRef: string, field: "rationale|remediation", text: string }   # EPHEMERAL; flag-controlled (D-10)
+  finding.discarded: { draftId: string, reason: "citation_check_failed|schema_invalid|abstained" }     # EPHEMERAL; additive (AC-STR-11)
+  finding.created:   { finding: Finding }                    # PERSISTED; verified finding; supersedes deltas for its draftId
+  finding.updated:   { finding: Finding, decisionId: "string?" }   # PERSISTED; decision applied or remediation attached (decisionId null)
+  # ---- collaboration
+  decision.applied:  { decision: ReviewDecision }            # PERSISTED
+  decision.rejected: { clientMsgId: string, code: "version_conflict|forbidden|invalid", current: "Finding?" }
+  comment.added:     { findingId: string, commentId: string, authorId: string, body: string }   # PERSISTED
+  presence.snapshot: { users: "[{ userId, name, state, focusFindingId? }]" }   # EPHEMERAL
+  presence.diff:     { joined: "[userId]?", left: "[userId]?", changed: "[{ userId, state, focusFindingId? }]?" }   # EPHEMERAL
+
+resume_protocol:
+  - "Client tracks the highest applied seq."
+  - "On reconnect: client.hello{lastSeq}. Within the replay window: replay.begin -> persisted events in order -> replay.end -> live. Else resync.required."
+  - "Client ignores seq <= lastSeq (idempotent delivery)."
+  - "Ephemeral events are never replayed; a missed draft appears complete via finding.created, or is silently gone if discarded."
+  - "No server.heartbeat within 2 x heartbeatMs => client reconnects with exponential backoff + full jitter (1 s -> 30 s)."
+
+rules:
+  - "Authorization: role comes from per-project membership (owner|reviewer|viewer). Viewers get decision.rejected{forbidden}; override by a non-Owner gets forbidden."
+  - "Missing or short reason, or escalate without assigneeId => decision.rejected{invalid}."
+  - "Stale findingVersion => decision.rejected{version_conflict, current}. UI offers [Keep theirs]; Owners also get [Override...]."
+  - "Token expiry mid-socket => error{auth_expired}; client refreshes and reconnects with lastSeq."
+  - "Flooding => error{rate_limited, retryAfterMs}; other clients unaffected."
+  - "finding.delta is coalesced to <= 20 msgs/s per socket; dropped deltas are harmless (finding.created carries the full text)."
+  - "Payloads never contain data the receiving role cannot already read via REST."

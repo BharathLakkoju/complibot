@@ -1,0 +1,10 @@
+# Rule 05: PII/PHI handling and log redaction
+
+1. **Documents are customer confidential.** They are stored in a private S3 bucket with **SSE-S3** (engineering stack; a customer-managed KMS key is stretch), Block Public Access, tenant-prefixed keys, and versioning. RDS storage is encrypted. Access is via short-lived presigned URLs (≤ 5 min) scoped to project members.
+2. **Logs and traces never contain document text, quotes, prompts, or completions.** Log IDs, counts, hashes, durations, and token counts. The structured logger (`structlog`) has a deny-list processor for the keys `text, quote, prompt, completion, content, body, rationale`. Values under those keys are replaced with `sha256[:12]` and a length.
+3. **LLM debug traces** (local development only, opt-in per review) go to a separate S3 prefix with a 7-day lifecycle. They are passed through pii-phi-detection in redact mode first. They are never enabled in the deployed demo environment.
+4. **Demo data policy (D-08).** Synthetic or public sample contracts only. The UI shows "Demo only: use synthetic or public sample contracts. Don't upload real confidential data." The eval set is public synthetic data plus public documents with verified licences (PRD Q-05, recommended default).
+5. **Bedrock**: model invocation logging is disabled, or pointed at an encrypted (SSE-S3) bucket with the same retention as documents. Prompts are not used for model training (Bedrock default). Confirm in the account settings during deploy.
+6. **OpenRouter (local dev)**: only synthetic documents, always redact mode, and the `APP_ENV=local` guard is enforced in code.
+7. **Retention and deletion**: S3 lifecycle expiry applies. A user-triggered document delete purges S3 objects, chunks, and embeddings within 24 h (target), and the audit trail records the deletion without content (AC-SEC-05). Embeddings count as personal data when the source contains PII.
+8. **Exception messages** may contain text fragments. Sentry/CloudWatch error handlers scrub them with the same deny-list before sending.

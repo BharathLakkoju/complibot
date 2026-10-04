@@ -1,0 +1,1624 @@
+{
+ "tokens": {
+  "light": {
+   "bg": {
+    "oklch": "oklch(98.5% 0.002 255)",
+    "hex": "#f9fafb",
+    "lum": 0.9547598590513481
+   },
+   "surface": {
+    "oklch": "oklch(100.0% 0.000 255)",
+    "hex": "#ffffff",
+    "lum": 1.0
+   },
+   "surface-2": {
+    "oklch": "oklch(96.8% 0.004 255)",
+    "hex": "#f3f5f7",
+    "lum": 0.910749024264728
+   },
+   "surface-3": {
+    "oklch": "oklch(94.0% 0.006 255)",
+    "hex": "#e8ebef",
+    "lum": 0.8280446166611021
+   },
+   "border": {
+    "oklch": "oklch(91.0% 0.006 255)",
+    "hex": "#dfe1e5",
+    "lum": 0.7519554548915246
+   },
+   "border-strong": {
+    "oklch": "oklch(62.0% 0.012 255)",
+    "hex": "#81878d",
+    "lum": 0.2391816035165741
+   },
+   "text": {
+    "oklch": "oklch(21.0% 0.015 255)",
+    "hex": "#14191f",
+    "lum": 0.009429129229261046
+   },
+   "text-secondary": {
+    "oklch": "oklch(40.0% 0.015 255)",
+    "hex": "#424850",
+    "lum": 0.06372167413713406
+   },
+   "text-muted": {
+    "oklch": "oklch(50.0% 0.014 255)",
+    "hex": "#5e646b",
+    "lum": 0.12555563184682753
+   },
+   "accent": {
+    "oklch": "oklch(50.0% 0.170 272)",
+    "hex": "#4455c2",
+    "lum": 0.1162098454036682
+   },
+   "accent-hover": {
+    "oklch": "oklch(44.0% 0.160 272)",
+    "hex": "#3745a9",
+    "lum": 0.07933041459372507
+   },
+   "accent-fg": {
+    "oklch": "oklch(99.0% 0.003 272)",
+    "hex": "#fbfcfe",
+    "lum": 0.9728579394069264
+   },
+   "accent-text": {
+    "oklch": "oklch(49.0% 0.170 272)",
+    "hex": "#4252bf",
+    "lum": 0.10954425365339286
+   },
+   "accent-subtle": {
+    "oklch": "oklch(95.5% 0.021 272)",
+    "hex": "#ebf0ff",
+    "lum": 0.8720234394532713
+   },
+   "accent-subtle-fg": {
+    "oklch": "oklch(40.0% 0.150 272)",
+    "hex": "#2f3b97",
+    "lum": 0.0596663251506514
+   },
+   "focus": {
+    "oklch": "oklch(55.0% 0.170 272)",
+    "hex": "#5165d3",
+    "lum": 0.15759839868645847
+   },
+   "critical": {
+    "oklch": "oklch(50.0% 0.190 25)",
+    "hex": "#b71824",
+    "lum": 0.10847922397895647
+   },
+   "critical-solid": {
+    "oklch": "oklch(50.0% 0.190 25)",
+    "hex": "#b71824",
+    "lum": 0.10847922397895647
+   },
+   "critical-on-solid": {
+    "oklch": "oklch(99.0% 0.000 0)",
+    "hex": "#fcfcfc",
+    "lum": 0.9734452903984125
+   },
+   "critical-subtle": {
+    "oklch": "oklch(96.0% 0.019 25)",
+    "hex": "#ffedeb",
+    "lum": 0.8782653202789805
+   },
+   "critical-hl": {
+    "oklch": "oklch(92.0% 0.040 25)",
+    "hex": "#fedbd7",
+    "lum": 0.766401629932444
+   },
+   "high": {
+    "oklch": "oklch(52.0% 0.148 45)",
+    "hex": "#ab4501",
+    "lum": 0.1291636212326856
+   },
+   "high-solid": {
+    "oklch": "oklch(55.0% 0.157 45)",
+    "hex": "#b84b01",
+    "lum": 0.15224692601765338
+   },
+   "high-on-solid": {
+    "oklch": "oklch(99.0% 0.000 0)",
+    "hex": "#fcfcfc",
+    "lum": 0.9734452903984125
+   },
+   "high-subtle": {
+    "oklch": "oklch(96.2% 0.021 50)",
+    "hex": "#ffefe6",
+    "lum": 0.8870617503543898
+   },
+   "high-hl": {
+    "oklch": "oklch(92.0% 0.048 55)",
+    "hex": "#ffddc7",
+    "lum": 0.7709642408923563
+   },
+   "medium": {
+    "oklch": "oklch(50.0% 0.105 75)",
+    "hex": "#865901",
+    "lum": 0.1221528092830369
+   },
+   "medium-subtle": {
+    "oklch": "oklch(96.5% 0.040 90)",
+    "hex": "#fef3d6",
+    "lum": 0.9002705433120205
+   },
+   "medium-hl": {
+    "oklch": "oklch(93.0% 0.080 92)",
+    "hex": "#fbe7ab",
+    "lum": 0.8060133178295739
+   },
+   "low": {
+    "oklch": "oklch(50.0% 0.091 220)",
+    "hex": "#006f87",
+    "lum": 0.13118148627755472
+   },
+   "low-subtle": {
+    "oklch": "oklch(96.2% 0.020 220)",
+    "hex": "#e5f6fc",
+    "lum": 0.8959782280547552
+   },
+   "low-hl": {
+    "oklch": "oklch(92.5% 0.045 220)",
+    "hex": "#c6eefb",
+    "lum": 0.8011987265413003
+   },
+   "info": {
+    "oklch": "oklch(46.0% 0.020 255)",
+    "hex": "#515963",
+    "lum": 0.0979493992060351
+   },
+   "info-subtle": {
+    "oklch": "oklch(95.5% 0.006 255)",
+    "hex": "#edf0f4",
+    "lum": 0.8685635494610165
+   },
+   "success": {
+    "oklch": "oklch(48.0% 0.120 150)",
+    "hex": "#197037",
+    "lum": 0.12070849588855875
+   },
+   "success-subtle": {
+    "oklch": "oklch(96.0% 0.030 150)",
+    "hex": "#e4f8e7",
+    "lum": 0.8939830542920061
+   },
+   "pending": {
+    "oklch": "oklch(46.0% 0.020 255)",
+    "hex": "#515963",
+    "lum": 0.0979493992060351
+   },
+   "pending-subtle": {
+    "oklch": "oklch(96.0% 0.006 255)",
+    "hex": "#eff2f6",
+    "lum": 0.8850880475127451
+   },
+   "ai-tint": {
+    "oklch": "oklch(97.0% 0.012 300)",
+    "hex": "#f6f3fc",
+    "lum": 0.9072228941445936
+   }
+  },
+  "dark": {
+   "bg": {
+    "oklch": "oklch(16.0% 0.008 255)",
+    "hex": "#0b0d11",
+    "lum": 0.003994660390300956
+   },
+   "surface": {
+    "oklch": "oklch(20.0% 0.010 255)",
+    "hex": "#13161b",
+    "lum": 0.007913976912921384
+   },
+   "surface-2": {
+    "oklch": "oklch(23.5% 0.011 255)",
+    "hex": "#1b1e23",
+    "lum": 0.012829073246260007
+   },
+   "surface-3": {
+    "oklch": "oklch(27.5% 0.012 255)",
+    "hex": "#24282e",
+    "lum": 0.0208990841214894
+   },
+   "border": {
+    "oklch": "oklch(31.0% 0.012 255)",
+    "hex": "#2c3136",
+    "lum": 0.02998439963357355
+   },
+   "border-strong": {
+    "oklch": "oklch(56.0% 0.015 255)",
+    "hex": "#6f757d",
+    "lum": 0.17582755341281558
+   },
+   "text": {
+    "oklch": "oklch(96.5% 0.004 255)",
+    "hex": "#f2f4f6",
+    "lum": 0.9023243368094769
+   },
+   "text-secondary": {
+    "oklch": "oklch(82.0% 0.010 255)",
+    "hex": "#c0c4cb",
+    "lum": 0.5499811992063021
+   },
+   "text-muted": {
+    "oklch": "oklch(72.0% 0.012 255)",
+    "hex": "#a0a5ac",
+    "lum": 0.3736240777104276
+   },
+   "accent": {
+    "oklch": "oklch(76.0% 0.122 272)",
+    "hex": "#96acff",
+    "lum": 0.43209078013494573
+   },
+   "accent-hover": {
+    "oklch": "oklch(82.0% 0.089 272)",
+    "hex": "#b0c1ff",
+    "lum": 0.545900347199065
+   },
+   "accent-fg": {
+    "oklch": "oklch(18.0% 0.040 272)",
+    "hex": "#0b1023",
+    "lum": 0.005630786778275844
+   },
+   "accent-text": {
+    "oklch": "oklch(78.0% 0.111 272)",
+    "hex": "#9eb3ff",
+    "lum": 0.4672929986214787
+   },
+   "accent-subtle": {
+    "oklch": "oklch(29.0% 0.060 272)",
+    "hex": "#212949",
+    "lum": 0.0239024853406223
+   },
+   "accent-subtle-fg": {
+    "oklch": "oklch(88.0% 0.058 272)",
+    "hex": "#cad6ff",
+    "lum": 0.6786969114355892
+   },
+   "focus": {
+    "oklch": "oklch(78.0% 0.111 272)",
+    "hex": "#9eb3ff",
+    "lum": 0.4672929986214787
+   },
+   "critical": {
+    "oklch": "oklch(74.0% 0.150 25)",
+    "hex": "#fb817a",
+    "lum": 0.37614884170661844
+   },
+   "critical-solid": {
+    "oklch": "oklch(70.0% 0.170 25)",
+    "hex": "#f66d67",
+    "lum": 0.3150938129533053
+   },
+   "critical-on-solid": {
+    "oklch": "oklch(17.0% 0.030 25)",
+    "hex": "#1b0a09",
+    "lum": 0.004698172806030721
+   },
+   "critical-subtle": {
+    "oklch": "oklch(28.0% 0.060 25)",
+    "hex": "#421c19",
+    "lum": 0.020589456414737247
+   },
+   "critical-hl": {
+    "oklch": "oklch(34.0% 0.080 25)",
+    "hex": "#5a2522",
+    "lum": 0.036122882271337295
+   },
+   "high": {
+    "oklch": "oklch(78.0% 0.130 50)",
+    "hex": "#fa9d68",
+    "lum": 0.45437411498870717
+   },
+   "high-solid": {
+    "oklch": "oklch(76.0% 0.140 50)",
+    "hex": "#f7945a",
+    "lum": 0.4169215128945352
+   },
+   "high-on-solid": {
+    "oklch": "oklch(17.0% 0.030 50)",
+    "hex": "#1a0b04",
+    "lum": 0.004677221347288271
+   },
+   "high-subtle": {
+    "oklch": "oklch(28.0% 0.050 50)",
+    "hex": "#3c2111",
+    "lum": 0.020888425842929225
+   },
+   "high-hl": {
+    "oklch": "oklch(34.0% 0.070 50)",
+    "hex": "#542c13",
+    "lum": 0.03733199260506968
+   },
+   "medium": {
+    "oklch": "oklch(84.0% 0.130 85)",
+    "hex": "#f1c45e",
+    "lum": 0.5898877972295601
+   },
+   "medium-subtle": {
+    "oklch": "oklch(28.0% 0.050 80)",
+    "hex": "#362607",
+    "lum": 0.02185836424915988
+   },
+   "medium-hl": {
+    "oklch": "oklch(35.0% 0.070 85)",
+    "hex": "#4b3702",
+    "lum": 0.04232615220651255
+   },
+   "low": {
+    "oklch": "oklch(80.0% 0.100 220)",
+    "hex": "#6ccdea",
+    "lum": 0.5279130150229319
+   },
+   "low-subtle": {
+    "oklch": "oklch(28.0% 0.040 220)",
+    "hex": "#0e2d36",
+    "lum": 0.022364760795309496
+   },
+   "low-hl": {
+    "oklch": "oklch(34.0% 0.060 220)",
+    "hex": "#043f4d",
+    "lum": 0.041166474975704526
+   },
+   "info": {
+    "oklch": "oklch(80.0% 0.015 255)",
+    "hex": "#b7bec7",
+    "lum": 0.5101771230457187
+   },
+   "info-subtle": {
+    "oklch": "oklch(27.0% 0.012 255)",
+    "hex": "#23272c",
+    "lum": 0.019902119648277164
+   },
+   "success": {
+    "oklch": "oklch(80.0% 0.150 150)",
+    "hex": "#6ed889",
+    "lum": 0.5423287297955229
+   },
+   "success-subtle": {
+    "oklch": "oklch(27.0% 0.050 150)",
+    "hex": "#122d19",
+    "lum": 0.02075557569037723
+   },
+   "pending": {
+    "oklch": "oklch(80.0% 0.015 255)",
+    "hex": "#b7bec7",
+    "lum": 0.5101771230457187
+   },
+   "pending-subtle": {
+    "oklch": "oklch(27.0% 0.012 255)",
+    "hex": "#23272c",
+    "lum": 0.019902119648277164
+   },
+   "ai-tint": {
+    "oklch": "oklch(23.0% 0.025 300)",
+    "hex": "#1f1a27",
+    "lum": 0.011765786539333275
+   }
+  }
+ },
+ "rows": [
+  [
+   "light",
+   "text",
+   "bg",
+   "body",
+   16.91,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-secondary",
+   "bg",
+   "body",
+   8.84,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-muted",
+   "bg",
+   "body",
+   5.72,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "surface",
+   "body",
+   17.67,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-secondary",
+   "surface",
+   "body",
+   9.23,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-muted",
+   "surface",
+   "body",
+   5.98,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "surface-2",
+   "body",
+   16.17,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-secondary",
+   "surface-2",
+   "body",
+   8.45,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-muted",
+   "surface-2",
+   "body",
+   5.47,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "surface-3",
+   "body",
+   14.77,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-secondary",
+   "surface-3",
+   "body",
+   7.72,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-muted",
+   "surface-3",
+   "body",
+   5.0,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "accent-fg",
+   "accent",
+   "body",
+   6.15,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "accent-fg",
+   "accent-hover",
+   "body",
+   7.91,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "accent-text",
+   "bg",
+   "body",
+   6.3,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "accent-text",
+   "surface",
+   "body",
+   6.58,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "accent-subtle-fg",
+   "accent-subtle",
+   "body",
+   8.41,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "accent-subtle",
+   "body",
+   15.51,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "critical",
+   "bg",
+   "body",
+   6.34,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "critical",
+   "surface",
+   "body",
+   6.63,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "critical",
+   "critical-subtle",
+   "body",
+   5.86,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "critical-subtle",
+   "body",
+   15.62,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "high",
+   "bg",
+   "body",
+   5.61,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "high",
+   "surface",
+   "body",
+   5.86,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "high",
+   "high-subtle",
+   "body",
+   5.23,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "high-subtle",
+   "body",
+   15.77,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "medium",
+   "bg",
+   "body",
+   5.84,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "medium",
+   "surface",
+   "body",
+   6.1,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "medium",
+   "medium-subtle",
+   "body",
+   5.52,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "medium-subtle",
+   "body",
+   15.99,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "low",
+   "bg",
+   "body",
+   5.55,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "low",
+   "surface",
+   "body",
+   5.8,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "low",
+   "low-subtle",
+   "body",
+   5.22,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "low-subtle",
+   "body",
+   15.92,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "info",
+   "bg",
+   "body",
+   6.79,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "info",
+   "surface",
+   "body",
+   7.1,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "info",
+   "info-subtle",
+   "body",
+   6.21,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "info-subtle",
+   "body",
+   15.46,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "success",
+   "bg",
+   "body",
+   5.89,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "success",
+   "surface",
+   "body",
+   6.15,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "success",
+   "success-subtle",
+   "body",
+   5.53,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "success-subtle",
+   "body",
+   15.88,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "pending",
+   "bg",
+   "body",
+   6.79,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "pending",
+   "surface",
+   "body",
+   7.1,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "pending",
+   "pending-subtle",
+   "body",
+   6.32,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "pending-subtle",
+   "body",
+   15.73,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "critical-hl",
+   "body",
+   13.74,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "high-hl",
+   "body",
+   13.81,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "medium-hl",
+   "body",
+   14.4,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "low-hl",
+   "body",
+   14.32,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "critical-on-solid",
+   "critical-solid",
+   "body",
+   6.46,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "high-on-solid",
+   "high-solid",
+   "body",
+   5.06,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text",
+   "ai-tint",
+   "body",
+   16.11,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "text-secondary",
+   "ai-tint",
+   "body",
+   8.42,
+   4.5,
+   true
+  ],
+  [
+   "light",
+   "focus",
+   "bg",
+   "ui",
+   4.84,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "focus",
+   "surface",
+   "ui",
+   5.06,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "focus",
+   "surface-2",
+   "ui",
+   4.63,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "focus",
+   "surface-3",
+   "ui",
+   4.23,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "focus",
+   "accent-subtle",
+   "ui",
+   4.44,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "border-strong",
+   "bg",
+   "ui",
+   3.47,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "border-strong",
+   "surface",
+   "ui",
+   3.63,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "accent",
+   "surface",
+   "ui",
+   6.32,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "critical-solid",
+   "surface",
+   "ui",
+   6.63,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "high-solid",
+   "surface",
+   "ui",
+   5.19,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "critical",
+   "critical-hl",
+   "ui",
+   5.15,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "high",
+   "high-hl",
+   "ui",
+   4.58,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "medium",
+   "medium-hl",
+   "ui",
+   4.97,
+   3.0,
+   true
+  ],
+  [
+   "light",
+   "low",
+   "low-hl",
+   "ui",
+   4.7,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "bg",
+   "body",
+   17.64,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-secondary",
+   "bg",
+   "body",
+   11.11,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-muted",
+   "bg",
+   "body",
+   7.85,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "surface",
+   "body",
+   16.44,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-secondary",
+   "surface",
+   "body",
+   10.36,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-muted",
+   "surface",
+   "body",
+   7.31,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "surface-2",
+   "body",
+   15.16,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-secondary",
+   "surface-2",
+   "body",
+   9.55,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-muted",
+   "surface-2",
+   "body",
+   6.74,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "surface-3",
+   "body",
+   13.43,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-secondary",
+   "surface-3",
+   "body",
+   8.46,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-muted",
+   "surface-3",
+   "body",
+   5.98,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "accent-fg",
+   "accent",
+   "body",
+   8.67,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "accent-fg",
+   "accent-hover",
+   "body",
+   10.71,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "accent-text",
+   "bg",
+   "body",
+   9.58,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "accent-text",
+   "surface",
+   "body",
+   8.93,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "accent-subtle-fg",
+   "accent-subtle",
+   "body",
+   9.86,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "accent-subtle",
+   "body",
+   12.89,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "critical",
+   "bg",
+   "body",
+   7.89,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "critical",
+   "surface",
+   "body",
+   7.36,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "critical",
+   "critical-subtle",
+   "body",
+   6.04,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "critical-subtle",
+   "body",
+   13.49,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "high",
+   "bg",
+   "body",
+   9.34,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "high",
+   "surface",
+   "body",
+   8.71,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "high",
+   "high-subtle",
+   "body",
+   7.12,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "high-subtle",
+   "body",
+   13.43,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "medium",
+   "bg",
+   "body",
+   11.85,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "medium",
+   "surface",
+   "body",
+   11.05,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "medium",
+   "medium-subtle",
+   "body",
+   8.9,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "medium-subtle",
+   "body",
+   13.25,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "low",
+   "bg",
+   "body",
+   10.7,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "low",
+   "surface",
+   "body",
+   9.98,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "low",
+   "low-subtle",
+   "body",
+   7.99,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "low-subtle",
+   "body",
+   13.16,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "info",
+   "bg",
+   "body",
+   10.37,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "info",
+   "surface",
+   "body",
+   9.67,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "info",
+   "info-subtle",
+   "body",
+   8.01,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "info-subtle",
+   "body",
+   13.62,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "success",
+   "bg",
+   "body",
+   10.97,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "success",
+   "surface",
+   "body",
+   10.23,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "success",
+   "success-subtle",
+   "body",
+   8.37,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "success-subtle",
+   "body",
+   13.46,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "pending",
+   "bg",
+   "body",
+   10.37,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "pending",
+   "surface",
+   "body",
+   9.67,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "pending",
+   "pending-subtle",
+   "body",
+   8.01,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "pending-subtle",
+   "body",
+   13.62,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "critical-hl",
+   "body",
+   11.06,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "high-hl",
+   "body",
+   10.9,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "medium-hl",
+   "body",
+   10.31,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "low-hl",
+   "body",
+   10.45,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "critical-on-solid",
+   "critical-solid",
+   "body",
+   6.67,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "high-on-solid",
+   "high-solid",
+   "body",
+   8.54,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text",
+   "ai-tint",
+   "body",
+   15.42,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "text-secondary",
+   "ai-tint",
+   "body",
+   9.71,
+   4.5,
+   true
+  ],
+  [
+   "dark",
+   "focus",
+   "bg",
+   "ui",
+   9.58,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "focus",
+   "surface",
+   "ui",
+   8.93,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "focus",
+   "surface-2",
+   "ui",
+   8.23,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "focus",
+   "surface-3",
+   "ui",
+   7.3,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "focus",
+   "accent-subtle",
+   "ui",
+   7.0,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "border-strong",
+   "bg",
+   "ui",
+   4.18,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "border-strong",
+   "surface",
+   "ui",
+   3.9,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "accent",
+   "surface",
+   "ui",
+   8.32,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "critical-solid",
+   "surface",
+   "ui",
+   6.3,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "high-solid",
+   "surface",
+   "ui",
+   8.06,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "critical",
+   "critical-hl",
+   "ui",
+   4.95,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "high",
+   "high-hl",
+   "ui",
+   5.78,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "medium",
+   "medium-hl",
+   "ui",
+   6.93,
+   3.0,
+   true
+  ],
+  [
+   "dark",
+   "low",
+   "low-hl",
+   "ui",
+   6.34,
+   3.0,
+   true
+  ]
+ ]
+}

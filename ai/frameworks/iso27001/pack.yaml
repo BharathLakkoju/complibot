@@ -1,0 +1,333 @@
+pack:
+  id: iso27001
+  code: ISO27001                 # FrameworkCode (PRD §5)
+  maturity: preview            # UI badge "Preview · Limited control coverage"; not claimed in eval until gold v1
+  name: ISO/IEC 27001:2022 Annex A
+  version: 1.0.0
+  source: "ISO/IEC 27001:2022 Annex A (control numbers and titles only)"
+  license_note: "Copyrighted standard: numbers and short titles only; requirements paraphrased."
+
+controls:
+  - id: ISO-CERT
+    ref: "ISO/IEC 27001:2022 certification"
+    theme: organizational
+    title: Supplier certification claim is current and in scope
+    requirement: "If a supplier relies on ISO 27001 certification, it should be to the 2022 edition, issued by an accredited body, with a scope and Statement of Applicability that cover the contracted service."
+    satisfied_by: [{ id: e1, text: "2022 edition" }, { id: e2, text: "Scope covers service" }, { id: e3, text: "Commitment to maintain and notify of lapse" }]
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)27001\\s*:\\s*2013", note: "2013 edition; transition ended 31 Oct 2025" }
+      - { id: rf2, kind: regex, pattern: "(?i)\\bA\\.(9|10|11|12|13|14|15|16|17|18)\\.\\d", note: "2013 Annex A numbering" }
+    default_severity: medium
+    doc_types: [msa, dpa, vendor_questionnaire]
+    mandatory_for: []
+    mappings: { soc2: [SOC2-ATTEST], gdpr: ["Art. 28(1)", "Art. 32"], hipaa: [] }
+    keywords: [ISO 27001, certified, certificate, Statement of Applicability]
+    verify: confirmed
+
+  # ---------- Organizational ----------
+  - id: ISO-A.5.1
+    ref: A.5.1
+    theme: organizational
+    title: Policies for information security
+    requirement: "A management-approved information security policy and topic-specific policies exist, are communicated, and are reviewed at planned intervals."
+    satisfied_by: [{ id: e1, text: "Approval by management" }, { id: e2, text: "Review cycle (e.g. annual)" }, { id: e3, text: "Communicated to staff/parties" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy]
+    mandatory_for: [security_policy]
+    mappings: { soc2: [CC5.3, CC2.2], gdpr: ["Art. 24", "Art. 32"], hipaa: ["164.316(a)"] }
+    keywords: [policy, approved by, reviewed annually]
+    verify: confirmed
+
+  - id: ISO-A.5.12
+    ref: A.5.12
+    theme: organizational
+    title: Classification of information
+    requirement: "Information is classified by confidentiality, integrity, availability and stakeholder needs, and handling rules follow the classification."
+    satisfied_by: [{ id: e1, text: "Classification levels defined" }, { id: e2, text: "Handling rules per level" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, data_policy]
+    mandatory_for: []
+    mappings: { soc2: [C1.1], gdpr: ["Art. 9", "Art. 32"], hipaa: [] }
+    keywords: [classification, confidential, restricted, public, internal]
+    verify: confirmed
+
+  - id: ISO-A.5.14
+    ref: A.5.14
+    theme: organizational
+    title: Information transfer
+    requirement: "Rules, procedures or agreements protect information when it is transferred internally or to external parties, by any means."
+    satisfied_by: [{ id: e1, text: "Approved transfer methods (encrypted)" }, { id: e2, text: "Transfer agreements with external parties" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(e-?mail|USB).{0,40}(unencrypted|plain ?text)", note: "insecure transfer" }]
+    default_severity: medium
+    doc_types: [security_policy, dpa]
+    mandatory_for: []
+    skills: [cross-border-transfer]
+    mappings: { soc2: [CC6.7], gdpr: ["Art. 32", "Art. 44"], hipaa: ["164.312(e)(1)"] }
+    keywords: [information transfer, file transfer, secure transmission]
+    verify: confirmed
+
+  - id: ISO-A.5.15
+    ref: "A.5.15, A.5.18"
+    theme: organizational
+    title: Access control and access rights
+    requirement: "Access rules follow business and security requirements, and access rights are provisioned, reviewed and removed under a defined process."
+    satisfied_by: [{ id: e1, text: "Access control policy (need-to-know, least privilege)" }, { id: e2, text: "Periodic access review" }, { id: e3, text: "Removal on role change/termination" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [security_policy, access_control_policy]
+    mandatory_for: [access_control_policy]
+    mappings: { soc2: [CC6.1, CC6.2, CC6.3], gdpr: ["Art. 32"], hipaa: ["164.312(a)(1)", "164.308(a)(4)"] }
+    keywords: [access control, least privilege, need to know, access review]
+    verify: confirmed
+
+  - id: ISO-A.5.19-20
+    ref: "A.5.19, A.5.20"
+    theme: organizational
+    title: Supplier relationships and supplier agreements
+    requirement: "Security risks from suppliers are managed, and supplier agreements set the security requirements for the relationship: access, confidentiality, incident reporting, subcontracting, audit, and return of assets."
+    satisfied_by:
+      - { id: e1, text: "Security requirements in agreement" }
+      - { id: e2, text: "Incident reporting obligation" }
+      - { id: e3, text: "Subcontracting conditions" }
+      - { id: e4, text: "Right to audit / evidence" }
+      - { id: e5, text: "Return/destruction at end" }
+    red_flags: []
+    default_severity: high
+    doc_types: [msa, dpa, vendor_policy]
+    mandatory_for: [msa]
+    skills: [subprocessor-analysis]
+    mappings: { soc2: [CC9.2], gdpr: ["Art. 28"], hipaa: ["164.308(b)(1)", "164.314(a)"] }
+    keywords: [supplier, vendor, agreement, security requirements]
+    verify: confirmed
+
+  - id: ISO-A.5.21-22
+    ref: "A.5.21, A.5.22"
+    theme: organizational
+    title: ICT supply chain and supplier monitoring
+    requirement: "Security requirements flow down the ICT supply chain, and supplier service delivery and changes are monitored and reviewed."
+    satisfied_by: [{ id: e1, text: "Flow-down to sub-suppliers" }, { id: e2, text: "Change notification / periodic review" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [msa, dpa, vendor_policy]
+    mandatory_for: []
+    skills: [subprocessor-analysis]
+    mappings: { soc2: [CC9.2], gdpr: ["Art. 28(2)", "Art. 28(4)"], hipaa: ["164.504(e)(2)(ii)(D)"] }
+    keywords: [supply chain, subcontractor, flow down, supplier review]
+    verify: confirmed
+
+  - id: ISO-A.5.23
+    ref: A.5.23
+    theme: organizational
+    title: Information security for use of cloud services
+    requirement: "How cloud services are acquired, used, managed and exited follows the organisation's security requirements, including shared responsibility and exit."
+    satisfied_by: [{ id: e1, text: "Shared responsibility defined" }, { id: e2, text: "Exit / data portability terms" }, { id: e3, text: "Data location stated" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [msa, security_policy]
+    mandatory_for: []
+    mappings: { soc2: [CC9.2], gdpr: ["Art. 28", "Art. 44"], hipaa: [] }
+    keywords: [cloud, SaaS, shared responsibility, exit, portability, data location]
+    verify: confirmed
+
+  - id: ISO-A.5.24-26
+    ref: "A.5.24, A.5.25, A.5.26"
+    theme: organizational
+    title: Incident management planning, assessment and response
+    requirement: "Incident management roles and procedures are defined. Events are assessed and classified, and incidents are handled under documented procedures, including notifying the people who need to know."
+    satisfied_by: [{ id: e1, text: "IR plan with roles" }, { id: e2, text: "Triage/classification criteria" }, { id: e3, text: "Notification to affected parties with timeframe" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [security_policy, msa, dpa]
+    mandatory_for: [security_policy]
+    skills: [breach-notification-timeline]
+    mappings: { soc2: [CC7.3, CC7.4], gdpr: ["Art. 33", "Art. 34"], hipaa: ["164.308(a)(6)", "164.404", "164.410"] }
+    keywords: [incident, incident response, triage, severity, notification]
+    verify: confirmed
+
+  - id: ISO-A.5.30
+    ref: A.5.30
+    theme: organizational
+    title: ICT readiness for business continuity
+    requirement: "ICT readiness is planned, implemented, maintained and tested against business continuity objectives (e.g. RTO and RPO)."
+    satisfied_by: [{ id: e1, text: "RTO/RPO defined" }, { id: e2, text: "Tested periodically" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [bcp_policy, msa, sla]
+    mandatory_for: [bcp_policy]
+    mappings: { soc2: [A1.2, A1.3], gdpr: ["Art. 32(1)(c)"], hipaa: ["164.308(a)(7)"] }
+    keywords: [business continuity, disaster recovery, RTO, RPO]
+    verify: confirmed
+
+  - id: ISO-A.5.31
+    ref: A.5.31
+    theme: organizational
+    title: Legal, statutory, regulatory and contractual requirements
+    requirement: "Relevant legal, regulatory and contractual requirements are identified, documented and kept up to date."
+    satisfied_by: [{ id: e1, text: "Compliance with applicable data protection laws stated" }, { id: e2, text: "Register of requirements (policy)" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, msa]
+    mandatory_for: []
+    mappings: { soc2: [CC2.3], gdpr: ["Art. 28(3)(a)"], hipaa: [] }
+    keywords: [applicable law, regulatory requirements, compliance]
+    verify: confirmed
+
+  - id: ISO-A.5.34
+    ref: A.5.34
+    theme: organizational
+    title: Privacy and protection of PII
+    requirement: "Requirements for privacy and PII protection under applicable laws, regulations and contracts are identified and met."
+    satisfied_by: [{ id: e1, text: "Privacy obligations defined (DPA or policy)" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [dpa, privacy_policy, security_policy]
+    mandatory_for: []
+    mappings: { soc2: [P1.1], gdpr: ["Art. 28", "Art. 32"], hipaa: ["164.502"] }
+    keywords: [personal data, PII, privacy]
+    verify: confirmed
+
+  # ---------- People ----------
+  - id: ISO-A.6.1
+    ref: A.6.1
+    theme: people
+    title: Screening
+    requirement: "Background checks on candidates are carried out before joining, in proportion to business requirements, the classification of information accessed, and the perceived risks, subject to applicable law."
+    satisfied_by: [{ id: e1, text: "Pre-employment screening for staff with data access" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, hr_policy, msa]
+    mandatory_for: []
+    mappings: { soc2: [CC1.4], gdpr: [], hipaa: ["164.308(a)(3)(ii)(B)"] }
+    keywords: [background check, screening, vetting]
+    verify: confirmed
+
+  - id: ISO-A.6.3
+    ref: A.6.3
+    theme: people
+    title: Security awareness, education and training
+    requirement: "Personnel get security awareness and training suited to their role, with regular updates."
+    satisfied_by: [{ id: e1, text: "Training at onboarding" }, { id: e2, text: "Periodic refresh (e.g. annual)" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, hr_policy]
+    mandatory_for: []
+    mappings: { soc2: [CC2.2], gdpr: ["Art. 39(1)(b)"], hipaa: ["164.308(a)(5)"] }
+    keywords: [training, awareness, phishing]
+    verify: confirmed
+
+  - id: ISO-A.6.6
+    ref: A.6.6
+    theme: people
+    title: Confidentiality or non-disclosure agreements
+    requirement: "Confidentiality agreements reflecting the organisation's needs are identified, documented, reviewed and signed by personnel and relevant parties."
+    satisfied_by: [{ id: e1, text: "NDA/confidentiality for personnel and contractors" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [msa, nda, dpa, hr_policy]
+    mandatory_for: []
+    mappings: { soc2: [C1.1], gdpr: ["Art. 28(3)(b)"], hipaa: [] }
+    keywords: [confidentiality agreement, NDA]
+    verify: confirmed
+
+  # ---------- Physical ----------
+  - id: ISO-A.7.10-14
+    ref: "A.7.10, A.7.14"
+    theme: physical
+    title: Storage media and secure disposal or re-use of equipment
+    requirement: "Storage media are managed through their lifecycle, and equipment holding data is wiped or destroyed securely before disposal or re-use."
+    satisfied_by: [{ id: e1, text: "Media handling procedure" }, { id: e2, text: "Secure wipe/destruction standard" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy, dpa]
+    mandatory_for: []
+    mappings: { soc2: [CC6.5], gdpr: ["Art. 28(3)(g)", "Art. 32"], hipaa: ["164.310(d)(1)", "164.310(d)(2)(i)"] }
+    keywords: [media, disposal, destruction, wipe, re-use]
+    verify: confirmed
+
+  - id: ISO-A.7.1-2
+    ref: "A.7.1, A.7.2"
+    theme: physical
+    title: Physical perimeters and entry
+    requirement: "Areas holding information and assets have defined security perimeters and controlled entry. For cloud vendors this is usually inherited from the hosting provider's attestation."
+    satisfied_by: [{ id: e1, text: "Physical controls or inherited from named data-centre provider" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, msa]
+    mandatory_for: []
+    mappings: { soc2: [CC6.4], gdpr: ["Art. 32"], hipaa: ["164.310(a)(1)"] }
+    keywords: [data centre, physical security, badge, perimeter]
+    verify: confirmed
+
+  # ---------- Technological ----------
+  - id: ISO-A.8.2-5
+    ref: "A.8.2, A.8.5"
+    theme: technological
+    title: Privileged access and secure authentication
+    requirement: "Privileged access is restricted and managed, and authentication is secure (e.g. MFA) in line with access restrictions."
+    satisfied_by: [{ id: e1, text: "MFA for privileged/remote access" }, { id: e2, text: "Privileged access restricted and logged" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(shared|generic) (admin|root|privileged) (accounts?|credentials)", note: "shared privileged accounts" }]
+    default_severity: high
+    doc_types: [security_policy, access_control_policy]
+    mandatory_for: []
+    mappings: { soc2: [CC6.1, CC6.3], gdpr: ["Art. 32"], hipaa: ["164.312(d)", "164.312(a)(2)(i)"] }
+    keywords: [MFA, privileged access, admin, root, authentication]
+    verify: confirmed
+
+  - id: ISO-A.8.10
+    ref: A.8.10
+    theme: technological
+    title: Information deletion
+    requirement: "Information in systems, devices and other storage media is deleted when no longer required."
+    satisfied_by: [{ id: e1, text: "Deletion upon end of need/contract with timeframe" }, { id: e2, text: "Backups covered" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [dpa, msa, retention_policy]
+    mandatory_for: []
+    skills: [retention-period-extraction]
+    mappings: { soc2: [C1.2, P4.3], gdpr: ["Art. 5(1)(e)", "Art. 17", "Art. 28(3)(g)"], hipaa: ["164.310(d)(2)(i)"] }
+    keywords: [deletion, erase, purge, backups]
+    verify: confirmed
+
+  - id: ISO-A.8.13
+    ref: A.8.13
+    theme: technological
+    title: Information backup
+    requirement: "Backup copies of information, software and systems are kept and regularly tested under an agreed backup policy."
+    satisfied_by: [{ id: e1, text: "Backup schedule" }, { id: e2, text: "Restore testing" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy, msa, bcp_policy]
+    mandatory_for: []
+    mappings: { soc2: [A1.2], gdpr: ["Art. 32(1)(c)"], hipaa: ["164.308(a)(7)(ii)(A)"] }
+    keywords: [backup, restore, snapshot]
+    verify: confirmed
+
+  - id: ISO-A.8.15-16
+    ref: "A.8.15, A.8.16"
+    theme: technological
+    title: Logging and monitoring
+    requirement: "Logs of activities, exceptions, faults and relevant events are produced, protected and analysed. Networks and systems are monitored for anomalous behaviour."
+    satisfied_by: [{ id: e1, text: "Security-relevant logging with retention" }, { id: e2, text: "Logs protected from tampering" }, { id: e3, text: "Monitoring/alerting" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy]
+    mandatory_for: [security_policy]
+    mappings: { soc2: [CC7.2], gdpr: ["Art. 32"], hipaa: ["164.312(b)"] }
+    keywords: [logging, audit log, monitoring, SIEM]
+    verify: confirmed
+
+  - id: ISO-A.8.24
+    ref: A.8.24
+    theme: technological
+    title: Use of cryptography
+    requirement: "Rules for using cryptography, including key management, are defined and implemented."
+    satisfied_by: [{ id: e1, text: "Encryption at rest and in transit specified" }, { id: e2, text: "Key management (rotation, custody)" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)\\b(MD5|SHA-?1|DES|3DES|RC4)\\b", note: "weak algorithm" }]
+    default_severity: high
+    doc_types: [security_policy, dpa, msa]
+    mandatory_for: []
+    mappings: { soc2: [CC6.1, CC6.7], gdpr: ["Art. 32(1)(a)"], hipaa: ["164.312(a)(2)(iv)", "164.312(e)(2)(ii)"] }
+    keywords: [encryption, cryptography, key management, KMS, AES, TLS]
+    verify: confirmed

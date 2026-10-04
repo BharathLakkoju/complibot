@@ -1,0 +1,19 @@
+---
+description: AWS infrastructure as code (Terraform), single demo environment, least privilege, cost, secrets
+globs: infra/**,**/*.tf,**/*.tfvars,.github/workflows/**
+alwaysApply: false
+---
+- Terraform ≥ 1.10 (PRD Q-01, recommended default), AWS provider pinned. Remote state is in S3 with native locking (`use_lockfile = true`) and encryption.
+- **One environment** (`demo`) in one region (Q-03 default `us-east-1`). Keep the module layout env-agnostic so more envs can be added later (multi-env and blue/green are stretch).
+- Modules:
+  - `network`: VPC with **no NAT gateway**. Fargate tasks run in public subnets with `assignPublicIp`, and their security groups only accept ingress from the ALB. RDS sits in private subnets. Add the free S3 gateway endpoint. Add interface endpoints only if their cost fits the budget.
+  - `data`: RDS Postgres 16, smallest burstable class, **single-AZ**, storage encrypted, pgvector.
+  - `compute`: ECS Fargate services `api` and `worker`, plus an ALB with idle timeout 60 s (above the 15 s WS heartbeat) and **scheduled scale-to-zero** outside demo windows (Q-04 default; optional RDS stop/start).
+  - `auth`: Cognito user pool and app client for the Vercel frontend origin.
+  - `observability`: log groups with retention, a dashboard (time to first finding, tokens, cost per review), and **AWS Budgets alarms at 50/80/100%** of $75/month.
+- **Least privilege.** Separate task roles. The worker may invoke Bedrock only on the pinned model and inference-profile ARNs. The API cannot invoke Bedrock. S3 access is limited to the tenant-prefixed `docs/` and `reports/` prefixes. No `*` actions or resources unless AWS requires it, with a comment.
+- **No secrets in code or tfvars.** Use an RDS-managed master secret in Secrets Manager, injected through ECS `secrets`. CI uses GitHub OIDC → deploy role. No static keys.
+- **S3**: private, Block Public Access, **SSE-S3**, versioning, TLS-only bucket policy, lifecycle expiry. CORS allows only the Vercel origin for presigned PUT. A customer-managed KMS key, Object Lock, and signed reports are **stretch** (D-02).
+- **SQS**: SSE enabled, DLQ with `maxReceiveCount=3`, visibility timeout ≥ 6× the p99 task duration, DLQ depth alarm.
+- Tag everything with `project`, `owner`, `data_classification`. Run `tflint` and `checkov` in CI.
+- Bedrock model access is requested on day 1 in the target region, and model and profile IDs are pinned in SSM `/cc/demo/bedrock/{fast,reasoning,embed}`.

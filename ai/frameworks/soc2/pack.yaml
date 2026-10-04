@@ -1,0 +1,306 @@
+pack:
+  id: soc2
+  code: SOC2                 # FrameworkCode (PRD §5)
+  maturity: full               # evaluated in depth on gold v0
+  name: SOC 2 - Trust Services Criteria
+  version: 1.0.0
+  source: "AICPA TSP section 100, 2017 TSC (revised points of focus 2022)"
+  license_note: "Criterion IDs only; requirements paraphrased. Do not reproduce AICPA text."
+  params: { categories: [security, availability, processing_integrity, confidentiality, privacy] }
+
+controls:
+  # ---------- Security (Common Criteria) ----------
+  - id: SOC2-ATTEST
+    ref: "SOC 2 Type II report"
+    category: security
+    title: Vendor provides current SOC 2 Type II report
+    requirement: "The vendor commits to provide, on request and at least annually, a current SOC 2 Type II report covering the in-scope services, plus bridge letters for any gap periods. The vendor should also address the complementary user-entity controls (CUECs) it relies on."
+    satisfied_by:
+      - { id: e1, text: "Type II (not only Type I) report, annually" }
+      - { id: e2, text: "Scope covers the contracted services/system" }
+      - { id: e3, text: "Bridge letter / notification of qualified opinion or exceptions" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)type\\s*(1|I)\\b(?!I)", note: "Type I only" }
+      - { id: rf2, kind: semantic, text: "Report provided only for a different entity or subservice organisation (carve-out)" }
+    default_severity: medium
+    doc_types: [msa, dpa, vendor_questionnaire]
+    mandatory_for: []
+    mappings: { iso27001: [A.5.22, A.5.35], gdpr: ["Art. 28(3)(h)"], hipaa: ["164.308(b)(1)"] }
+    keywords: [SOC 2, Type II, attestation, audit report, bridge letter]
+    verify: confirmed
+
+  - id: SOC2-CC2.3
+    ref: CC2.3
+    category: security
+    title: Communication with external parties
+    requirement: "Security commitments, changes to them, and a way to report incidents or concerns are communicated to customers and other external parties."
+    satisfied_by: [{ id: e1, text: "Security commitments documented for customers" }, { id: e2, text: "Channel for customers to report incidents" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [msa, security_policy]
+    mandatory_for: []
+    mappings: { iso27001: [A.5.24, A.6.8], gdpr: ["Art. 33(2)"], hipaa: [] }
+    keywords: [security contact, report a vulnerability, commitments]
+    verify: confirmed
+
+  - id: SOC2-CC3.2
+    ref: CC3.2
+    category: security
+    title: Risk identification and analysis
+    requirement: "Risks to achieving objectives, including risks from vendors and business partners, are identified and analysed on a recurring basis, and the results inform how they are managed."
+    satisfied_by: [{ id: e1, text: "Periodic (at least annual) risk assessment" }, { id: e2, text: "Risk treatment / ownership" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy]
+    mandatory_for: [security_policy]
+    mappings: { iso27001: [A.5.1], gdpr: ["Art. 32", "Art. 35"], hipaa: ["164.308(a)(1)(ii)(A)", "164.308(a)(1)(ii)(B)"] }
+    keywords: [risk assessment, risk register, risk treatment]
+    verify: confirmed
+
+  - id: SOC2-CC6.1
+    ref: CC6.1
+    category: security
+    title: Logical access security and encryption at rest
+    requirement: "Logical access software, infrastructure and architecture protect information assets: asset inventory, restricted access paths, authentication, and encryption of data at rest where appropriate."
+    satisfied_by:
+      - { id: e1, text: "Authentication for all access (MFA for privileged/remote)" }
+      - { id: e2, text: "Encryption at rest with managed keys" }
+      - { id: e3, text: "Access restricted to authorised users/systems" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(shared|generic) (accounts?|credentials|passwords?)", note: "shared accounts" }
+      - { id: rf2, kind: semantic, text: "Encryption 'where feasible' or 'upon request' only" }
+    default_severity: high
+    doc_types: [security_policy, msa, dpa]
+    mandatory_for: [security_policy]
+    mappings: { iso27001: [A.5.15, A.8.5, A.8.24], gdpr: ["Art. 32"], hipaa: ["164.312(a)(1)", "164.312(a)(2)(iv)", "164.312(d)"] }
+    keywords: [access control, authentication, MFA, encryption at rest, AES-256, KMS]
+    verify: confirmed
+
+  - id: SOC2-CC6.2-6.3
+    ref: "CC6.2, CC6.3"
+    category: security
+    title: Provisioning, least privilege, access reviews
+    requirement: "Users are registered and authorised before access is granted, access follows least privilege and role, it is reviewed periodically, and it is removed promptly when no longer needed."
+    satisfied_by:
+      - { id: e1, text: "Approval before provisioning" }
+      - { id: e2, text: "Role-based least privilege" }
+      - { id: e3, text: "Periodic access reviews (e.g. quarterly)" }
+      - { id: e4, text: "Timely deprovisioning on termination (e.g. within 24h)" }
+    red_flags: [{ id: rf1, kind: semantic, text: "No timeframe for revoking access of leavers" }]
+    default_severity: high
+    doc_types: [security_policy, access_control_policy]
+    mandatory_for: [access_control_policy]
+    mappings: { iso27001: [A.5.15, A.5.16, A.5.18, A.8.2], gdpr: ["Art. 32"], hipaa: ["164.308(a)(4)", "164.312(a)(1)"] }
+    keywords: [least privilege, role-based, access review, deprovisioning, offboarding]
+    verify: confirmed
+
+  - id: SOC2-CC6.5
+    ref: CC6.5
+    category: security
+    title: Secure disposal of assets
+    requirement: "Protections over physical and logical assets are only removed once the data on them can no longer be read or recovered."
+    satisfied_by: [{ id: e1, text: "Media sanitisation / crypto-shredding procedure" }, { id: e2, text: "Disposal records or certificates" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy, dpa]
+    mandatory_for: []
+    mappings: { iso27001: [A.7.14, A.8.10], gdpr: ["Art. 28(3)(g)"], hipaa: ["164.310(d)(2)(i)", "164.310(d)(2)(ii)"] }
+    keywords: [disposal, sanitisation, destroy, NIST 800-88, crypto-shred]
+    verify: confirmed
+
+  - id: SOC2-CC6.6-6.7
+    ref: "CC6.6, CC6.7"
+    category: security
+    title: Boundary protection and encryption in transit
+    requirement: "Access from outside system boundaries is protected (firewalls, secure remote access, MFA), and data moving over networks or to removable media is restricted and protected, e.g. with TLS."
+    satisfied_by: [{ id: e1, text: "Encryption in transit (TLS 1.2+)" }, { id: e2, text: "Protected remote/external access" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)\\b(SSL ?v?3|TLS ?1\\.0|TLS ?1\\.1|FTP\\b(?!S))", note: "deprecated protocol" }]
+    default_severity: high
+    doc_types: [security_policy, msa, dpa]
+    mandatory_for: []
+    mappings: { iso27001: [A.8.20, A.8.24, A.5.14], gdpr: ["Art. 32"], hipaa: ["164.312(e)(1)", "164.312(e)(2)(ii)"] }
+    keywords: [TLS, encryption in transit, VPN, firewall]
+    verify: confirmed
+
+  - id: SOC2-CC7.2
+    ref: CC7.2
+    category: security
+    title: Security monitoring and logging
+    requirement: "System components are monitored for anomalies that may indicate malicious acts, natural disasters or errors, and the anomalies are analysed."
+    satisfied_by: [{ id: e1, text: "Centralised logging with retention" }, { id: e2, text: "Alerting / monitoring of security events" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy]
+    mandatory_for: [security_policy]
+    mappings: { iso27001: [A.8.15, A.8.16], gdpr: ["Art. 32"], hipaa: ["164.312(b)", "164.308(a)(1)(ii)(D)"] }
+    keywords: [logging, SIEM, monitoring, alerting, audit logs]
+    verify: confirmed
+
+  - id: SOC2-CC7.3-7.4
+    ref: "CC7.3, CC7.4"
+    category: security
+    title: Incident evaluation and response
+    requirement: "Security events are evaluated to decide whether they are incidents, and incidents are handled under a defined response programme: containment, eradication, communication, and lessons learned."
+    satisfied_by:
+      - { id: e1, text: "Documented incident response plan with roles" }
+      - { id: e2, text: "Customer notification commitment with timeframe" }
+      - { id: e3, text: "Post-incident review" }
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(commercially )?reasonable (efforts|endeavou?rs) to notify", note: "soft notification" }]
+    default_severity: high
+    doc_types: [security_policy, msa, dpa]
+    mandatory_for: [security_policy]
+    skills: [breach-notification-timeline]
+    mappings: { iso27001: [A.5.24, A.5.25, A.5.26, A.5.27], gdpr: ["Art. 33"], hipaa: ["164.308(a)(6)", "164.410"] }
+    keywords: [incident response, security incident, containment, notify customer]
+    verify: confirmed
+
+  - id: SOC2-CC7.5
+    ref: CC7.5
+    category: security
+    title: Recovery from incidents
+    requirement: "Activities to recover from identified incidents are defined and carried out."
+    satisfied_by: [{ id: e1, text: "Recovery procedures referenced from IR plan" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy]
+    mandatory_for: []
+    mappings: { iso27001: [A.5.26, A.5.29], gdpr: ["Art. 32"], hipaa: ["164.308(a)(7)"] }
+    keywords: [recovery, restore, post-incident]
+    verify: confirmed
+
+  - id: SOC2-CC8.1
+    ref: CC8.1
+    category: security
+    title: Change management
+    requirement: "Changes to infrastructure, data, software and procedures are authorised, designed, documented, tested, approved and implemented in a controlled way."
+    satisfied_by: [{ id: e1, text: "Change approval and testing before production" }, { id: e2, text: "Segregation between dev and prod / peer review" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy, sdlc_policy]
+    mandatory_for: [sdlc_policy]
+    mappings: { iso27001: [A.8.32, A.8.25], gdpr: ["Art. 25"], hipaa: [] }
+    keywords: [change management, code review, deployment approval]
+    verify: confirmed
+
+  - id: SOC2-CC9.2
+    ref: CC9.2
+    category: security
+    title: Vendor and business partner risk
+    requirement: "Risks from vendors and business partners are assessed and managed: due diligence, contractual security commitments, and ongoing monitoring."
+    satisfied_by:
+      - { id: e1, text: "Vendor due diligence before onboarding" }
+      - { id: e2, text: "Security/confidentiality terms in vendor contracts" }
+      - { id: e3, text: "Periodic vendor review" }
+    red_flags: [{ id: rf1, kind: semantic, text: "Vendor may subcontract without equivalent obligations" }]
+    default_severity: high
+    doc_types: [security_policy, vendor_policy, msa, dpa]
+    mandatory_for: [vendor_policy]
+    skills: [subprocessor-analysis]
+    mappings: { iso27001: [A.5.19, A.5.20, A.5.21, A.5.22], gdpr: ["Art. 28(2)", "Art. 28(4)"], hipaa: ["164.308(b)(1)", "164.314(a)"] }
+    keywords: [vendor management, third-party risk, subcontractor, supplier]
+    verify: confirmed
+
+  # ---------- Availability ----------
+  - id: SOC2-A1.2
+    ref: A1.2
+    category: availability
+    title: Backup and recovery infrastructure
+    requirement: "Environmental protections, software, data backups and recovery infrastructure are put in place and maintained to meet availability objectives."
+    satisfied_by: [{ id: e1, text: "Backup frequency and retention defined" }, { id: e2, text: "RPO/RTO defined" }, { id: e3, text: "Geographically separate backup" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Uptime SLA without any backup/DR commitment" }]
+    default_severity: medium
+    doc_types: [msa, sla, bcp_policy]
+    mandatory_for: [bcp_policy]
+    mappings: { iso27001: [A.8.13, A.8.14, A.5.30], gdpr: ["Art. 32"], hipaa: ["164.308(a)(7)(ii)(A)"] }
+    keywords: [backup, RPO, RTO, disaster recovery, uptime]
+    verify: confirmed
+
+  - id: SOC2-A1.3
+    ref: A1.3
+    category: availability
+    title: Recovery plan testing
+    requirement: "Recovery plan procedures are tested periodically, including backup restores."
+    satisfied_by: [{ id: e1, text: "DR/BCP test at least annually" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [bcp_policy, msa]
+    mandatory_for: []
+    mappings: { iso27001: [A.5.30], gdpr: ["Art. 32"], hipaa: ["164.308(a)(7)(ii)(D)"] }
+    keywords: [DR test, tabletop, restore test]
+    verify: confirmed
+
+  # ---------- Processing Integrity ----------
+  - id: SOC2-PI1
+    ref: "PI1.2-PI1.4"
+    category: processing_integrity
+    title: Complete, accurate, timely processing
+    requirement: "Inputs, processing and outputs are controlled so that results are complete, accurate, valid and timely against the service's specifications."
+    satisfied_by: [{ id: e1, text: "Input validation / reconciliation commitments" }, { id: e2, text: "Error handling and correction process" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [msa, sow]
+    mandatory_for: []
+    mappings: { iso27001: [A.8.25], gdpr: ["Art. 5(1)(d)"], hipaa: ["164.312(c)(1)"] }
+    keywords: [accuracy, reconciliation, data integrity, validation]
+    verify: confirmed     # TSP 100: PI1.2 inputs, PI1.3 processing, PI1.4 outputs
+
+  # ---------- Confidentiality ----------
+  - id: SOC2-C1.1
+    ref: C1.1
+    category: confidentiality
+    title: Identify and protect confidential information
+    requirement: "Confidential information is identified and protected according to confidentiality commitments."
+    satisfied_by: [{ id: e1, text: "Definition of confidential information" }, { id: e2, text: "Protection and need-to-know obligations" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Confidentiality term ends at contract termination with no survival" }]
+    default_severity: medium
+    doc_types: [msa, nda, dpa]
+    mandatory_for: [nda]
+    mappings: { iso27001: [A.5.12, A.6.6], gdpr: ["Art. 28(3)(b)"], hipaa: [] }
+    keywords: [confidential information, survival, need to know]
+    verify: confirmed
+
+  - id: SOC2-C1.2
+    ref: C1.2
+    category: confidentiality
+    title: Dispose of confidential information
+    requirement: "Confidential information is disposed of once retention requirements are met."
+    satisfied_by: [{ id: e1, text: "Return/destroy obligation with timeframe" }, { id: e2, text: "Certification of destruction on request" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [msa, nda, dpa]
+    mandatory_for: []
+    skills: [retention-period-extraction]
+    mappings: { iso27001: [A.8.10], gdpr: ["Art. 28(3)(g)", "Art. 5(1)(e)"], hipaa: ["164.504(e)(2)(ii)(J)"] }
+    keywords: [return or destroy, certificate of destruction]
+    verify: confirmed
+
+  # ---------- Privacy ----------
+  - id: SOC2-P4
+    ref: "P4.2, P4.3"
+    category: privacy
+    title: Retention and disposal of personal information
+    requirement: "Personal information is kept only as long as commitments require and is then securely disposed of."
+    satisfied_by: [{ id: e1, text: "Retention schedule" }, { id: e2, text: "Disposal procedure" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [privacy_policy, retention_policy]
+    mandatory_for: [retention_policy]
+    skills: [retention-period-extraction]
+    mappings: { iso27001: [A.5.33, A.8.10], gdpr: ["Art. 5(1)(e)"], hipaa: ["164.530(j)"] }
+    keywords: [retention schedule, disposal, personal information]
+    verify: confirmed     # TSP 100: P4.2 retention, P4.3 secure disposal
+
+  - id: SOC2-P6
+    ref: "P6.1, P6.5, P6.6"
+    category: privacy
+    title: Third-party disclosure and breach notification
+    requirement: "Personal information goes to third parties only for stated purposes, vendors commit to report unauthorised disclosures, and affected parties are notified of breaches according to commitments."
+    satisfied_by: [{ id: e1, text: "Disclosure limited to stated purposes" }, { id: e2, text: "Vendor obligation to report unauthorised disclosures" }, { id: e3, text: "Breach notification to data subjects" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(sell|share|rent).{0,40}(personal (data|information)).{0,40}(third parties|partners)", note: "sale/sharing" }]
+    default_severity: high
+    doc_types: [privacy_policy, dpa]
+    mandatory_for: []
+    skills: [subprocessor-analysis, breach-notification-timeline]
+    mappings: { iso27001: [A.5.34, A.5.26], gdpr: ["Art. 28(2)", "Art. 33", "Art. 34"], hipaa: ["164.410", "164.404"] }
+    keywords: [disclosure, third parties, unauthorised disclosure, notify]
+    verify: confirmed     # TSP 100: P6.1 third-party disclosure, P6.5 vendor notice of unauthorised disclosure, P6.6 breach notification

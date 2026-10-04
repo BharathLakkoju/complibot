@@ -1,0 +1,15 @@
+---
+description: AI pipeline, prompts, LLM calls, framework packs and evaluation discipline
+globs: apps/worker/**,ai/**,eval/**
+alwaysApply: false
+---
+- `ai/` is the spec, and `docs/` (PRD, ACs) wins on product behaviour. Behavioural changes to an agent update `ai/agents/<agent>.md` and `apps/worker/prompts|pipeline/` in the same PR.
+- All LLM calls go through `llm.client.invoke(model_tier, tool_schema, messages)`. That wrapper handles forced tool use, Pydantic validation plus one repair, retries with jitter, budget accounting, token metrics, and region and provider fallback. No direct boto3 `bedrock-runtime` calls elsewhere.
+- Model IDs come from settings (`BEDROCK_MODEL_FAST/REASONING/EMBED`). Don't hard-code them.
+- Document text is only ever placed inside `<document_text trust="untrusted">` in the user turn, via `prompting.wrap_document()`, which escapes tag look-alikes. Never interpolate document text into system prompts.
+- Framework facts (articles, sections, red flags, thresholds) come from pack YAML or `runtime-config.yaml`, never from prompt prose. Prompts reference `{control.requirement}` and similar fields.
+- Every finding passes the Citation Verifier before `finding.created`. Failures are retried once, then discarded and counted. Don't add a bypass flag, including for tests (use fixtures instead). There is no auto-accept code path at any confidence (AC-AI-08).
+- Deterministic first: regex, parsers, and skills compute facts, and the LLM judges with those facts in hand. Durations, dates, and offsets are never computed by the LLM.
+- Each prompt file has a `PROMPT_VERSION`, which is stored on every finding (`created_by.prompt_version`).
+- Prompt, pack, or threshold changes trigger the eval smoke gate (regression-only until a baseline exists; see testing.mdc). Budgets and the USD guard come from `runtime-config.yaml`. Record `tokens` and `costUsd` per review from the pinned price table.
+- pgvector: HNSW index (`vector_cosine_ops`). Embedding dimension comes from config, and a migration is required when it changes. Filter by `document_id` before the ANN search.

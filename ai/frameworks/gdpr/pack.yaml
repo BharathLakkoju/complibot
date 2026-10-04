@@ -1,0 +1,383 @@
+pack:
+  id: gdpr
+  code: GDPR                 # FrameworkCode (PRD §5)
+  maturity: full               # evaluated in depth on gold v0
+  name: General Data Protection Regulation
+  version: 1.0.0
+  source: "Regulation (EU) 2016/679; Commission Implementing Decision (EU) 2021/914 (SCCs)"
+  license_note: "EU legislation; article numbers cited. Requirements paraphrased."
+  refs_whitelist: ["Art. 5", "Art. 6", "Art. 9", "Art. 13", "Art. 14", "Art. 15", "Art. 16", "Art. 17", "Art. 18", "Art. 20", "Art. 21",
+                   "Art. 25", "Art. 28", "Art. 30", "Art. 32", "Art. 33", "Art. 34", "Art. 35", "Art. 36", "Art. 44", "Art. 45",
+                   "Art. 46", "Art. 49", "Decision (EU) 2021/914"]
+
+controls:
+  - id: GDPR-28.3-scope
+    ref: "Art. 28(3)"
+    title: Processing details documented
+    requirement: >
+      The processor contract must describe the subject matter and duration of processing, its nature and purpose,
+      the types of personal data, the categories of data subjects, and the controller's obligations and rights.
+    satisfied_by:
+      - { id: e1, text: "Subject matter and duration stated" }
+      - { id: e2, text: "Nature and purpose stated" }
+      - { id: e3, text: "Types of personal data listed" }
+      - { id: e4, text: "Categories of data subjects listed" }
+    red_flags:
+      - { id: rf1, kind: semantic, text: "Annex describing processing is blank, says 'to be determined', or refers to an undefined document" }
+      - { id: rf2, kind: regex, pattern: "(?i)(\\bto be (agreed|determined)\\b|\\bT\\.?B\\.?[AD]\\b|\\[\\s*\\])", note: "schedule left unfilled" }
+    default_severity: medium
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "a party processes personal data on behalf of another"
+    mappings: { iso27001: [A.5.34, A.5.20], soc2: [P1.1], hipaa: ["164.504(e)(2)(i)"] }
+    keywords: [annex, schedule, categories of data subjects, types of personal data, purpose]
+    verify: confirmed
+
+  - id: GDPR-28.3.a
+    ref: "Art. 28(3)(a)"
+    title: Processing only on documented instructions
+    requirement: >
+      The processor may process personal data only on the controller's documented instructions, including for
+      international transfers, unless EU or member-state law requires otherwise (in which case it informs the controller
+      first, where legally allowed). It must tell the controller if it thinks an instruction infringes data-protection law.
+    satisfied_by:
+      - { id: e1, text: "Processing limited to documented instructions of controller" }
+      - { id: e2, text: "Transfers also subject to instructions" }
+      - { id: e3, text: "Processor informs controller of legally required processing / infringing instructions" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)for (its|our) own (business )?purposes", note: "processor-own-use" }
+      - { id: rf2, kind: regex, pattern: "(?i)(improve|train|develop) (its|our) (services|models|products)", note: "secondary use, e.g. AI training" }
+      - { id: rf3, kind: regex, pattern: "(?i)aggregated|anonymi[sz]ed.{0,40}(any|own) purpose" , note: "check true anonymisation" }
+    default_severity: high
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    mappings: { iso27001: [A.5.34, A.5.20], soc2: [P4.1], hipaa: ["164.504(e)(2)(ii)(A)"] }
+    keywords: [instructions, documented instructions, purposes]
+    verify: confirmed
+
+  - id: GDPR-28.3.b
+    ref: "Art. 28(3)(b)"
+    title: Personnel confidentiality
+    requirement: "People authorised to process the personal data are bound by confidentiality, by contract or statute."
+    satisfied_by: [{ id: e1, text: "Confidentiality obligation on all personnel with access" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Confidentiality limited to employees, excluding contractors" }]
+    default_severity: medium
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    mappings: { iso27001: [A.6.6, A.6.2], soc2: [CC1.1, C1.1], hipaa: ["164.308(a)(3)"] }
+    keywords: [confidentiality, personnel, staff, authorised persons]
+    verify: confirmed     # Art. 28(3)(b) checked; SOC 2 IDs checked against TSP 100 (2022 PoF): CC1.1 standards of conduct, C1.1. Crosswalk indicative
+
+  - id: GDPR-32
+    ref: "Art. 32; Art. 28(3)(c)"
+    title: Security of processing
+    requirement: >
+      Appropriate technical and organisational measures proportionate to risk, such as pseudonymisation and encryption,
+      ongoing confidentiality, integrity, availability and resilience, timely restoration after incidents, and regular
+      testing of the measures.
+    satisfied_by:
+      - { id: e1, text: "Commitment to appropriate TOMs with a described or annexed measure set" }
+      - { id: e2, text: "Encryption in transit and at rest (or justified alternative)" }
+      - { id: e3, text: "Backup / restore capability" }
+      - { id: e4, text: "Regular testing / assessment of measures" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)industry[- ]standard (security|measures)(?!.{0,200}(annex|schedule|appendix))", note: "vague, no annex" }
+      - { id: rf2, kind: regex, pattern: "(?i)may (modify|change|update) (its )?security measures (at any time|in its (sole )?discretion)", note: "unilateral downgrade" }
+    default_severity: high
+    doc_types: [dpa, msa, security_policy]
+    mandatory_for: [dpa]
+    applies_when: "personal data processed"
+    mappings: { iso27001: [A.8.24, A.8.13, A.5.15, A.8.5], soc2: [CC6.1, CC6.7, A1.2], hipaa: ["164.312(a)(1)", "164.312(e)(1)", "164.308(a)(1)(ii)(A)"] }
+    keywords: [technical and organisational measures, TOMs, encryption, security measures]
+    verify: confirmed
+
+  - id: GDPR-28.2-subprocessors
+    ref: "Art. 28(2), 28(3)(d), 28(4)"
+    title: Sub-processor authorisation and flow-down
+    requirement: >
+      The processor needs the controller's prior specific or general written authorisation to engage sub-processors.
+      Under general authorisation it must give notice of changes and a chance to object. The same data-protection obligations
+      flow down by contract, and the processor stays fully liable for its sub-processors.
+    satisfied_by:
+      - { id: e1, text: "Prior written authorisation (specific or general)" }
+      - { id: e2, text: "Advance notice of new/replaced sub-processors and right to object" }
+      - { id: e3, text: "Equivalent obligations flowed down by written contract" }
+      - { id: e4, text: "Processor remains liable for sub-processors" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(may|can) (engage|appoint|use) (any )?(sub-?processors|third parties) (without|at its (sole )?discretion)", note: "no authorisation" }
+      - { id: rf2, kind: semantic, text: "Objection right exists but only remedy is termination without refund, or notice period under 10 days" }
+      - { id: rf3, kind: semantic, text: "Liability for sub-processors excluded or capped separately" }
+    default_severity: high
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    params: { min_notice_days: null }   # internal pack may set e.g. 30
+    skills: [subprocessor-analysis]
+    mappings: { iso27001: [A.5.19, A.5.20, A.5.21, A.5.22], soc2: [CC9.2], hipaa: ["164.502(e)(1)(ii)", "164.504(e)(2)(ii)(D)", "164.314(a)"] }
+    keywords: [sub-processor, subprocessor, subcontractor, third party]
+    verify: confirmed
+
+  - id: GDPR-28.3.e-dsr
+    ref: "Art. 28(3)(e); Arts. 15-22"
+    title: Assistance with data subject rights
+    requirement: "The processor helps the controller, through appropriate measures, to answer data subject requests (access, rectification, erasure, restriction, portability, objection)."
+    satisfied_by:
+      - { id: e1, text: "Assistance obligation for data subject requests" }
+      - { id: e2, text: "Processor forwards requests received directly and does not respond itself unless instructed" }
+    red_flags: [{ id: rf1, kind: semantic, text: "Assistance only 'at additional cost to be agreed' with no timeline" }]
+    default_severity: medium
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    mappings: { iso27001: [A.5.34], soc2: [P5.1], hipaa: ["164.524", "164.526"] }
+    keywords: [data subject request, access request, erasure, rectification, portability]
+    verify: confirmed
+
+  - id: GDPR-28.3.f-dpia
+    ref: "Art. 28(3)(f); Arts. 32-36"
+    title: Assistance with security, breach, DPIA and consultation
+    requirement: "The processor helps the controller meet its duties on security, breach notification, DPIAs and prior consultation, taking into account the information available to the processor."
+    satisfied_by: [{ id: e1, text: "Assistance obligation covering Arts. 32-36" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [dpa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    mappings: { iso27001: [A.5.34], soc2: [CC3.2], hipaa: [] }
+    keywords: [impact assessment, DPIA, prior consultation]
+    verify: confirmed
+
+  - id: GDPR-28.3.g-return-delete
+    ref: "Art. 28(3)(g)"
+    title: Return or deletion at end of services
+    requirement: "At the end of the services, and at the controller's choice, the processor deletes or returns all personal data and deletes existing copies, unless law requires storage."
+    satisfied_by:
+      - { id: e1, text: "Controller's choice of return or deletion" }
+      - { id: e2, text: "Copies deleted (incl. backups within defined period)" }
+      - { id: e3, text: "Exception only where law requires retention" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(retain|keep).{0,60}(indefinitely|in perpetuity|as long as (it|we) (deems?|consider))", note: "open-ended retention" }
+      - { id: rf2, kind: semantic, text: "No deadline for deletion, or backups excluded without a rotation period" }
+    default_severity: high
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    params: { max_deletion_days: null }
+    skills: [retention-period-extraction]
+    mappings: { iso27001: [A.8.10, A.7.14], soc2: [C1.2, CC6.5], hipaa: ["164.504(e)(2)(ii)(J)", "164.310(d)(2)(i)"] }
+    keywords: [termination, return, deletion, destroy, end of services]
+    verify: confirmed
+
+  - id: GDPR-28.3.h-audit
+    ref: "Art. 28(3)(h)"
+    title: Information and audit rights
+    requirement: "The processor makes available all information needed to demonstrate compliance with Art. 28 and allows and contributes to audits, including inspections, by the controller or its mandated auditor."
+    satisfied_by:
+      - { id: e1, text: "Information to demonstrate compliance available" }
+      - { id: e2, text: "Audit/inspection right (third-party reports may satisfy first, with on-site right preserved for cause)" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(no|not entitled to) (right to )?(audit|inspect)", note: "audit excluded" }
+      - { id: rf2, kind: semantic, text: "Audit limited exclusively to providing a SOC 2 report with no other recourse" }
+    default_severity: medium
+    doc_types: [dpa, msa, baa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    mappings: { iso27001: [A.5.35, A.5.22], soc2: [CC4.1], hipaa: ["164.504(e)(2)(ii)(I)"] }
+    keywords: [audit, inspection, SOC 2 report, certification]
+    verify: confirmed
+
+  - id: GDPR-33.2
+    ref: "Art. 33(2)"
+    title: Processor notifies controller of personal data breaches
+    requirement: "The processor notifies the controller without undue delay after becoming aware of a personal data breach, with enough information for the controller to meet its own 72-hour duty."
+    satisfied_by:
+      - { id: e1, text: "Notification obligation triggered on awareness (not on confirmation)" }
+      - { id: e2, text: "Defined timeframe compatible with the controller's 72h (or 'without undue delay')" }
+      - { id: e3, text: "Content: nature, categories/approx. numbers, likely consequences, measures taken, contact point" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)within\\s+(\\d+|[a-z]+)\\s*(\\(\\d+\\)\\s*)?(business |working )?(days)", note: "day-based window; skill computes hours" }
+      - { id: rf2, kind: regex, pattern: "(?i)(commercially )?reasonable (efforts|endeavou?rs) to notify", note: "soft obligation" }
+      - { id: rf3, kind: regex, pattern: "(?i)(confirmed|verified|determined) (security )?(breach|incident)", note: "trigger on confirmation delays notice" }
+    default_severity: critical
+    doc_types: [dpa, msa]
+    mandatory_for: [dpa]
+    applies_when: "processor relationship"
+    params: { max_notification_hours: null }   # null = "without undue delay"; skill flags > 72h as gap
+    skills: [breach-notification-timeline]
+    mappings: { iso27001: [A.5.24, A.5.26, A.6.8], soc2: [CC7.4, CC2.3], hipaa: ["164.410"] }
+    keywords: [personal data breach, security incident, notify, notification]
+    verify: confirmed
+
+  - id: GDPR-33.1
+    ref: "Art. 33(1), 33(3)-(5)"
+    title: Controller breach notification to supervisory authority
+    requirement: "Controller policies must provide for notifying the competent supervisory authority within 72 hours of becoming aware of a breach, unless it is unlikely to result in a risk, giving reasons for any delay and documenting all breaches."
+    satisfied_by:
+      - { id: e1, text: "72-hour authority notification procedure" }
+      - { id: e2, text: "Risk assessment step to decide notification" }
+      - { id: e3, text: "Breach register maintained" }
+    red_flags: [{ id: rf1, kind: semantic, text: "Notification only after internal investigation completes" }]
+    default_severity: critical
+    doc_types: [security_policy, privacy_policy]
+    mandatory_for: [security_policy]
+    applies_when: "organisation is a controller"
+    skills: [breach-notification-timeline]
+    mappings: { iso27001: [A.5.24, A.5.25, A.5.26], soc2: [CC7.3, CC7.4], hipaa: ["164.408"] }
+    keywords: [supervisory authority, 72 hours, breach register]
+    verify: confirmed
+
+  - id: GDPR-34
+    ref: "Art. 34"
+    title: Communication of breach to data subjects
+    requirement: "When a breach is likely to cause high risk to individuals, the controller tells them without undue delay in clear language, unless an exception applies (e.g. data was encrypted)."
+    satisfied_by: [{ id: e1, text: "Procedure for individual notification on high-risk breaches" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [security_policy, privacy_policy]
+    mandatory_for: []
+    applies_when: "organisation is a controller"
+    mappings: { iso27001: [A.5.26], soc2: [CC7.4], hipaa: ["164.404"] }
+    keywords: [notify individuals, data subjects, high risk]
+    verify: confirmed
+
+  - id: GDPR-44-transfers
+    ref: "Arts. 44-46, 49; Decision (EU) 2021/914"
+    title: International transfer mechanism
+    requirement: >
+      Transfers outside the EEA need a valid basis: an adequacy decision (Art. 45), appropriate safeguards such as the
+      2021 SCCs (Art. 46(2)(c)) or BCRs, or a narrow Art. 49 derogation. Where SCCs are used, a transfer impact assessment
+      and supplementary measures are expected.
+    satisfied_by:
+      - { id: e1, text: "Transfer locations/recipients identified" }
+      - { id: e2, text: "Named mechanism: adequacy, 2021 SCCs (correct module), BCRs" }
+      - { id: e3, text: "Transfer impact assessment / supplementary measures commitment" }
+      - { id: e4, text: "Onward transfer restrictions" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)2010/87/EU|2001/497/EC|2004/915/EC", note: "repealed SCC decisions" }
+      - { id: rf2, kind: regex, pattern: "(?i)privacy shield", note: "invalidated (Schrems II, 2020)" }
+      - { id: rf3, kind: regex, pattern: "(?i)(transfer|store|process).{0,60}(any|all) (countr(y|ies)|jurisdictions?|locations?)", note: "unrestricted location" }
+    default_severity: high
+    doc_types: [dpa, msa, privacy_policy]
+    mandatory_for: [dpa]
+    applies_when: "processing or access from outside the EEA"
+    skills: [cross-border-transfer]
+    mappings: { iso27001: [A.5.14, A.5.31, A.5.34], soc2: [P6.1], hipaa: [] }
+    keywords: [transfer, third country, standard contractual clauses, SCC, adequacy, data residency]
+    verify: confirmed
+
+  - id: GDPR-DPF
+    ref: "Art. 45"
+    title: Reliance on EU-US Data Privacy Framework
+    requirement: "If transfers to the US rely on the EU-US DPF, the importer must be self-certified, and the contract should have a fallback mechanism (e.g. SCCs) if the framework is invalidated."
+    satisfied_by:
+      - { id: e1, text: "Importer's DPF certification asserted" }
+      - { id: e2, text: "Fallback transfer mechanism" }
+    red_flags: [{ id: rf1, kind: semantic, text: "DPF relied on with no fallback" }]
+    default_severity: medium
+    doc_types: [dpa, msa]
+    mandatory_for: []
+    applies_when: "transfers to the US"
+    skills: [cross-border-transfer]
+    mappings: { iso27001: [A.5.31], soc2: [], hipaa: [] }
+    keywords: [Data Privacy Framework, DPF, certified]
+    verify: confirmed     # DPF in force 2026-10-05: Decision (EU) 2023/1795 upheld in T-553/23 (3 Sep 2025); appeal C-703/25 P pending
+
+  - id: GDPR-5.1.e
+    ref: "Art. 5(1)(e)"
+    title: Storage limitation / retention
+    requirement: "Personal data is kept in identifiable form no longer than needed for its purposes. Retention periods or the criteria for setting them should be defined."
+    satisfied_by:
+      - { id: e1, text: "Defined retention period or objective criteria per data category" }
+      - { id: e2, text: "Deletion or anonymisation at end of period" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(indefinitely|in perpetuity|for as long as (we|it) (wish|see fit|deem))", note: "unbounded" }
+      - { id: rf2, kind: regex, pattern: "(?i)as long as (is )?necessary(?![^.]{0,120}(criteria|determined by|period of))", note: "criteria missing" }
+    default_severity: medium
+    doc_types: [privacy_policy, dpa, security_policy, retention_policy]
+    mandatory_for: [privacy_policy, retention_policy]
+    applies_when: "personal data stored"
+    params: { max_retention_months: null }
+    skills: [retention-period-extraction]
+    mappings: { iso27001: [A.5.33, A.8.10], soc2: [P4.2, C1.2], hipaa: ["164.316(b)(2)(i)", "164.530(j)"] }
+    keywords: [retention, retain, storage period, delete]
+    verify: confirmed
+
+  - id: GDPR-6
+    ref: "Art. 6(1)"
+    title: Lawful basis identified
+    requirement: "Each processing purpose relies on one of the six lawful bases, which is identified to individuals."
+    satisfied_by: [{ id: e1, text: "Lawful basis stated per purpose" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Consent used as basis where processing is a condition of service or employment" }]
+    default_severity: high
+    doc_types: [privacy_policy]
+    mandatory_for: [privacy_policy]
+    applies_when: "organisation is a controller"
+    mappings: { iso27001: [A.5.34], soc2: [P2.1, P3.1], hipaa: ["164.502(a)"] }
+    keywords: [lawful basis, legitimate interests, consent, contract]
+    verify: confirmed
+
+  - id: GDPR-9
+    ref: "Art. 9"
+    title: Special category data
+    requirement: "Health, biometric, genetic and other special category data is processed only under an Art. 9(2) condition, with stronger safeguards."
+    satisfied_by:
+      - { id: e1, text: "Art. 9(2) condition identified" }
+      - { id: e2, text: "Additional safeguards (access restriction, encryption)" }
+    red_flags: [{ id: rf1, kind: semantic, text: "Health or biometric data processed with no special-category treatment" }]
+    default_severity: high
+    doc_types: [privacy_policy, dpa]
+    mandatory_for: []
+    applies_when: "pii-phi-detection finds special category data or text mentions it"
+    skills: [pii-phi-detection]
+    mappings: { iso27001: [A.5.12, A.5.34], soc2: [P3.2], hipaa: ["164.502"] }
+    keywords: [health data, biometric, genetic, special category, sensitive data]
+    verify: confirmed     # P3.2 = explicit consent (TSP 100). Crosswalk indicative
+
+  - id: GDPR-13-14
+    ref: "Arts. 13, 14"
+    title: Transparency information
+    requirement: "Privacy notices state the controller's identity, purposes, lawful basis, recipients, transfers, retention, rights, the right to complain, and the source of data when it was not collected directly."
+    satisfied_by:
+      - { id: e1, text: "Identity and contact details" }
+      - { id: e2, text: "Purposes and lawful basis" }
+      - { id: e3, text: "Recipients and transfers" }
+      - { id: e4, text: "Retention period/criteria" }
+      - { id: e5, text: "Rights, including complaint to supervisory authority" }
+    red_flags: []
+    default_severity: medium
+    doc_types: [privacy_policy]
+    mandatory_for: [privacy_policy]
+    applies_when: "privacy notice"
+    mappings: { iso27001: [A.5.34], soc2: [P1.1], hipaa: ["164.520"] }
+    keywords: [privacy notice, your rights, contact us, supervisory authority]
+    verify: confirmed
+
+  - id: GDPR-25
+    ref: "Art. 25"
+    title: Data protection by design and by default
+    requirement: "Systems are designed to apply data-protection principles, and by default only the personal data needed for each purpose is processed."
+    satisfied_by: [{ id: e1, text: "Privacy-by-design / minimisation commitments in SDLC or product policy" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, sdlc_policy]
+    mandatory_for: []
+    applies_when: "organisation builds systems processing personal data"
+    mappings: { iso27001: [A.8.25, A.8.11], soc2: [CC8.1], hipaa: ["164.502(b)"] }
+    keywords: [privacy by design, data minimisation, default settings]
+    verify: confirmed
+
+  - id: GDPR-30
+    ref: "Art. 30"
+    title: Records of processing activities
+    requirement: "Controllers and processors keep written records of processing activities and make them available to the supervisory authority on request."
+    satisfied_by: [{ id: e1, text: "Commitment to maintain records of processing (RoPA)" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [dpa, privacy_policy, security_policy]
+    mandatory_for: []
+    applies_when: "always for controllers/processors (limited exemption <250 staff)"
+    mappings: { iso27001: [A.5.9, A.5.34], soc2: [P6.7], hipaa: ["164.316(b)"] }
+    keywords: [records of processing, RoPA, register]
+    verify: confirmed     # P6.7 point of focus 'Identifies Types of Personal Information and Handling Process' (TSP 100). Crosswalk indicative

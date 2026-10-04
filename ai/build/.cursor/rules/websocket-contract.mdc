@@ -1,0 +1,19 @@
+---
+description: WebSocket event contract, resume/replay, presence and collaborative decisions
+globs: apps/api/ws/**,apps/worker/**/events*.py,apps/web/**/realtime/**,packages/schemas/events.yaml
+alwaysApply: false
+---
+- `packages/schemas/events.yaml` (copied from `ai/agents/schemas/events.yaml`; engineering's v1 contract, PRD §13) is the contract. Change it first, then run `make schemas`. Never hand-write payload types.
+- Endpoint: `/v1/reviews/{reviewId}/ws`. Envelope: `{v, type, id, seq?, reviewId, ts, correlationId?, payload}`. `seq` is present on every **persisted** server event, is gap-free per review, and is assigned in the same DB transaction as the state change (`review_events` outbox). Ephemeral events (`finding.delta`, `finding.discarded`, `presence.*`, `server.heartbeat`) carry no `seq` and are never replayed.
+- Handshake: the first client message is `client.hello {token, lastSeq?, clientVersion}` within 5 s, and the server answers `server.welcome {userId, role, currentSeq, heartbeatMs}`. The token is never in the URL. On expiry mid-socket, send `error{auth_expired}`.
+- Resume: if `currentSeq - lastSeq` is within the window (≥ 24 h or 5,000 events), send `replay.begin` → events → `replay.end`. Otherwise send `resync.required {reason, snapshotUrl}`. The client ignores `seq ≤ lastSeq`.
+- Heartbeat: `server.heartbeat` every **15 s**, and the client treats the server as dead after **30 s** and reconnects with backoff 1 s → 30 s plus jitter. The ALB idle timeout must be greater than the heartbeat (60 s).
+- Decisions: `decision.submit {clientMsgId, findingId, action, findingVersion, reason?, edits?, assigneeId?, overrideAction?}`.
+  - `action ∈ accept | reject | edit | escalate | reopen | override`.
+  - Server-side checks: role (Viewer → `forbidden`; override → Owner only), reason ≥ 10 chars where required (reject, escalate, reopen except the 8 s self-undo, override, severity edit) → otherwise `invalid`, `assigneeId` for escalate, `findingVersion` → `version_conflict` with `current`.
+  - Dedupe on `clientMsgId` for 24 h.
+  - Success: `decision.applied` + `finding.updated`.
+- Never auto-resubmit an unacknowledged decision after reconnect. Verify it against server state (AC-STR-12).
+- Fan-out: API tasks `LISTEN`. The NOTIFY payload is `{reviewId, seq}` only, and the API reads the row. Workers never hold sockets.
+- Backpressure: coalesce `finding.delta` to ≤ 20/s per socket. Flooding clients get `error{rate_limited, retryAfterMs}`.
+- Tests: payload contract tests against `events.yaml`; replay of exactly k+1…k+20 (AC-STR-07); resync (AC-STR-08); two-client version conflict (AC-COL-02); idempotency (AC-COL-06); Viewer and override authorization (AC-AUTH-04/05).

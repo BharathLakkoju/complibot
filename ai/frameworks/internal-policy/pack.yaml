@@ -1,0 +1,95 @@
+pack:
+  id: internal
+  code: INTERNAL                 # FrameworkCode (PRD §5)
+  maturity: preview            # UI badge "Preview · Limited control coverage"; not claimed in eval until gold v1
+  name: Acme Corp Vendor & Data Handling Standard (TEMPLATE)
+  version: 0.1.0
+  owner: "security-governance@acme.example"
+  approved_by: "CISO"            # required
+  effective_date: 2026-10-01     # required
+  source: "Acme Information Security Policy v4.2, Vendor Contracting Playbook v2"
+  extends: [gdpr, soc2, iso27001, hipaa]   # packs whose controls may be overridden
+
+# Tighten parameters of other packs' controls. Validator ensures the target control + param exist.
+overrides:
+  - control: GDPR-33.2
+    params: { max_notification_hours: 48 }
+    severity_floor: critical
+    rationale: "Our IR plan needs 24h to assess before our own 72h regulator clock."
+  - control: HIPAA-BAA-reporting
+    params: { max_notification_days: 5 }
+    rationale: "Playbook: BAs report security incidents within 5 business days, breaches within 48h of discovery."
+  - control: GDPR-28.2-subprocessors
+    params: { min_notice_days: 30 }
+  - control: GDPR-28.3.g-return-delete
+    params: { max_deletion_days: 30 }
+  - control: GDPR-5.1.e
+    params: { max_retention_months: 84 }
+
+# Used by Remediation Writer for suggested clauses.
+preferences:
+  breach_notification_window: "within forty-eight (48) hours of becoming aware"
+  governing_law: null           # Acme template sets none: suggested clauses keep the document's existing governing-law clause
+  approved_regions: [eu-west-1, eu-central-1, us-east-1]
+  approved_transfer_mechanisms: [adequacy, scc_2021_914]
+
+controls:
+  - id: INT-AI-01
+    title: No training of AI/ML models on our data
+    requirement: "The vendor may not use our data, including derived, aggregated or de-identified forms, to train or fine-tune machine-learning models that serve anyone other than us, unless we opt in in writing."
+    satisfied_by: [{ id: e1, text: "Explicit prohibition on training" }, { id: e2, text: "Covers derived/aggregated data" }, { id: e3, text: "Opt-in only" }]
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(train|fine-?tune|improve).{0,40}(model|algorithm|AI|machine learning)", note: "training language" }
+      - { id: rf2, kind: regex, pattern: "(?i)opt[- ]?out", note: "opt-out rather than opt-in" }
+    default_severity: high
+    doc_types: [msa, dpa, terms_of_service]
+    mandatory_for: [msa]
+    mappings: { gdpr: ["Art. 28(3)(a)"], hipaa: ["164.504(e)(2)(i)"], soc2: [P4.1], iso27001: [A.5.34] }
+    keywords: [machine learning, train, model, improve services, aggregated data]
+
+  - id: INT-RES-01
+    title: Data residency in approved regions
+    requirement: "Customer data at rest and backups stay in `preferences.approved_regions`. Remote support access from other locations needs written approval."
+    satisfied_by: [{ id: e1, text: "Named regions within approved list" }, { id: e2, text: "Backups covered" }, { id: e3, text: "Remote access restriction" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(any|all) (regions?|locations?|data cent(er|re)s?)", note: "unrestricted" }]
+    default_severity: high
+    doc_types: [msa, dpa]
+    mandatory_for: [dpa]
+    skills: [cross-border-transfer]
+    mappings: { gdpr: ["Art. 44"], iso27001: [A.5.23], soc2: [], hipaa: [] }
+    keywords: [data residency, region, location, data centre, hosted in]
+
+  - id: INT-LIAB-01
+    title: Uncapped or super-capped liability for data breaches
+    requirement: "Liability for breach of data-protection or security obligations is excluded from the general cap, or has a separate super-cap of at least 3x annual fees."
+    satisfied_by: [{ id: e1, text: "Data breach carve-out or super-cap >= 3x fees" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(aggregate|total) liability.{0,120}(shall not exceed|limited to).{0,80}(fees paid|twelve|12) ", note: "general cap only; check carve-outs" }]
+    default_severity: high
+    doc_types: [msa]
+    mandatory_for: [msa]
+    params: { min_super_cap_multiple: 3 }
+    mappings: { gdpr: ["Art. 82"], iso27001: [A.5.20], soc2: [], hipaa: [] }
+    keywords: [limitation of liability, cap, indemnity, super cap]
+
+  - id: INT-PEN-01
+    title: Annual penetration test with summary shared
+    requirement: "The vendor runs an independent penetration test at least once a year and shares an executive summary with remediation status on request."
+    satisfied_by: [{ id: e1, text: "Annual independent pentest" }, { id: e2, text: "Summary shared" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [msa, security_addendum]
+    mandatory_for: []
+    mappings: { iso27001: [A.8.8], soc2: [CC4.1, CC7.1], gdpr: ["Art. 32(1)(d)"], hipaa: ["164.308(a)(8)"] }
+    keywords: [penetration test, pentest, vulnerability assessment]
+
+  - id: INT-INS-01
+    title: Cyber insurance
+    requirement: "The vendor holds cyber liability insurance of at least `params.min_cover_usd` and provides a certificate on request."
+    satisfied_by: [{ id: e1, text: "Cyber insurance with cover amount" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [msa]
+    mandatory_for: []
+    params: { min_cover_usd: 5000000 }
+    mappings: {}
+    keywords: [insurance, cyber liability, certificate of insurance]

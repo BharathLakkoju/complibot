@@ -1,0 +1,301 @@
+pack:
+  id: hipaa
+  code: HIPAA                 # FrameworkCode (PRD §5)
+  maturity: preview            # UI badge "Preview · Limited control coverage"; not claimed in eval until gold v1
+  name: HIPAA Privacy, Security and Breach Notification Rules
+  version: 1.0.0
+  source: "45 CFR Parts 160 and 164 (eCFR)"
+  license_note: "US federal regulation; sections cited by number."
+
+controls:
+  # ---------- BAA content (Privacy Rule 164.504(e) + Security Rule 164.314(a)) ----------
+  - id: HIPAA-BAA-required
+    ref: "164.502(e), 164.308(b)(1)"
+    baa_element: true
+    title: BAA in place before PHI is disclosed to a business associate
+    requirement: "A covered entity, or a BA passing PHI to a subcontractor, may share PHI only after obtaining satisfactory written assurances through a business associate contract."
+    satisfied_by: [{ id: e1, text: "Document is or incorporates a BAA" }, { id: e2, text: "Parties' CE/BA roles identified" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "MSA mentions health data / PHI but has no BAA or references a BAA 'to be executed'" }]
+    default_severity: critical
+    doc_types: [baa, msa]
+    mandatory_for: [baa]
+    applies_when: "vendor creates, receives, maintains or transmits PHI"
+    mappings: { gdpr: ["Art. 28(3)"], soc2: [CC9.2], iso27001: [A.5.20] }
+    keywords: [business associate, BAA, protected health information, PHI, covered entity]
+    verify: confirmed
+
+  - id: HIPAA-BAA-permitted-uses
+    ref: "164.504(e)(2)(i), 164.504(e)(2)(ii)(A)"
+    baa_element: true
+    title: Permitted and required uses defined; no further use
+    requirement: "The BAA states what the BA may use and disclose PHI for, which cannot exceed what the covered entity itself could do, and the BA will not use or disclose PHI beyond that or as required by law."
+    satisfied_by: [{ id: e1, text: "Permitted uses/disclosures listed" }, { id: e2, text: "Prohibition on other uses" }]
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(de-?identif|aggregat).{0,80}(any|its own) (purpose|use)", note: "secondary use; check 164.504(e)(2)(i)(B) data aggregation scope" }
+      - { id: rf2, kind: regex, pattern: "(?i)(train|improve).{0,30}(model|algorithm|AI|machine learning)", note: "AI training on PHI" }
+    default_severity: critical
+    doc_types: [baa]
+    mandatory_for: [baa]
+    mappings: { gdpr: ["Art. 28(3)(a)"], soc2: [P4.1], iso27001: [A.5.34] }
+    keywords: [permitted uses, disclosures, as required by law]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  - id: HIPAA-BAA-safeguards
+    ref: "164.504(e)(2)(ii)(B), 164.314(a)(2)(i)"
+    baa_element: true
+    title: BA implements Security Rule safeguards
+    requirement: "The BA uses appropriate safeguards and complies with the Security Rule (Subpart C) for electronic PHI, to prevent uses or disclosures the agreement does not allow."
+    satisfied_by: [{ id: e1, text: "Commitment to Subpart C compliance for ePHI" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [baa]
+    mandatory_for: [baa]
+    mappings: { gdpr: ["Art. 28(3)(c)", "Art. 32"], soc2: [CC6.1], iso27001: [A.8.24, A.5.15] }
+    keywords: [safeguards, Subpart C, security rule, ePHI]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  - id: HIPAA-BAA-reporting
+    ref: "164.504(e)(2)(ii)(C), 164.314(a)(2)(i)(C), 164.410"
+    baa_element: true
+    title: BA reports impermissible uses, security incidents and breaches
+    requirement: "The BA reports any use or disclosure not allowed by the agreement, any security incident it becomes aware of, and breaches of unsecured PHI as required by 164.410."
+    satisfied_by:
+      - { id: e1, text: "Report non-permitted use/disclosure" }
+      - { id: e2, text: "Report security incidents (attempted-incident carve-out allowed if explicit)" }
+      - { id: e3, text: "Breach notification per 164.410 with timeframe" }
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)within\\s+(sixty|60)\\s*(\\(60\\)\\s*)?(calendar )?days", note: "outer legal limit used as contractual standard" }
+    default_severity: critical
+    doc_types: [baa]
+    mandatory_for: [baa]
+    params: { max_notification_days: 60 }
+    skills: [breach-notification-timeline]
+    mappings: { gdpr: ["Art. 33(2)"], soc2: [CC7.4], iso27001: [A.5.24, A.5.26] }
+    keywords: [report, security incident, breach, unsecured PHI]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  - id: HIPAA-BAA-subcontractors
+    ref: "164.502(e)(1)(ii), 164.504(e)(2)(ii)(D), 164.314(a)(2)(i)(B)"
+    baa_element: true
+    title: Subcontractors agree to the same restrictions
+    requirement: "The BA ensures any subcontractor that creates, receives, maintains or transmits PHI on its behalf agrees in writing to the same restrictions and conditions."
+    satisfied_by: [{ id: e1, text: "Written flow-down to subcontractors" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Subcontracting allowed with only 'confidentiality' obligations, not equivalent BAA terms" }]
+    default_severity: high
+    doc_types: [baa]
+    mandatory_for: [baa]
+    skills: [subprocessor-analysis]
+    mappings: { gdpr: ["Art. 28(4)"], soc2: [CC9.2], iso27001: [A.5.21] }
+    keywords: [subcontractor, agents, same restrictions]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  - id: HIPAA-BAA-individual-rights
+    ref: "164.504(e)(2)(ii)(E)-(G); 164.524, 164.526, 164.528"
+    baa_element: true
+    title: Support access, amendment and accounting of disclosures
+    requirement: "The BA makes PHI available for individual access, makes amendments, and provides the information needed for an accounting of disclosures."
+    satisfied_by: [{ id: e1, text: "Access (164.524)" }, { id: e2, text: "Amendment (164.526)" }, { id: e3, text: "Accounting (164.528)" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [baa]
+    mandatory_for: [baa]
+    mappings: { gdpr: ["Art. 28(3)(e)", "Art. 15", "Art. 16"], soc2: [P5.1], iso27001: [A.5.34] }
+    keywords: [access, amendment, accounting of disclosures, designated record set]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  - id: HIPAA-BAA-books-records
+    ref: "164.504(e)(2)(ii)(I)"
+    baa_element: true
+    title: Books and records available to HHS
+    requirement: "The BA makes its internal practices, books and records on PHI available to the Secretary of HHS for determining compliance."
+    satisfied_by: [{ id: e1, text: "Secretary access clause" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [baa]
+    mandatory_for: [baa]
+    mappings: { gdpr: ["Art. 28(3)(h)"], soc2: [], iso27001: [A.5.35] }
+    keywords: [Secretary, books and records, HHS]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  - id: HIPAA-BAA-termination
+    ref: "164.504(e)(2)(ii)(J), 164.504(e)(2)(iii)"
+    baa_element: true
+    title: Return or destroy PHI; termination for material breach
+    requirement: "At termination, the BA returns or destroys all PHI and keeps no copies. If that is not feasible, protections extend to what remains and further use is limited. The covered entity may terminate if the BA materially breaches the agreement."
+    satisfied_by: [{ id: e1, text: "Return/destroy at termination" }, { id: e2, text: "Infeasibility fallback extends protections" }, { id: e3, text: "CE termination right" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(retain|keep).{0,60}(backup|archive).{0,60}(indefinitely|in perpetuity)", note: "indefinite backup retention" }]
+    default_severity: high
+    doc_types: [baa]
+    mandatory_for: [baa]
+    skills: [retention-period-extraction]
+    mappings: { gdpr: ["Art. 28(3)(g)"], soc2: [C1.2], iso27001: [A.8.10] }
+    keywords: [return or destroy, termination, infeasible]
+    verify: confirmed     # letters checked in eCFR 45 CFR 164.504(e)(2), current to 2026-10-01
+
+  # ---------- Privacy Rule ----------
+  - id: HIPAA-164.502b
+    ref: "164.502(b), 164.514(d)"
+    title: Minimum necessary
+    requirement: "Uses, disclosures and requests for PHI are limited to the minimum needed for the purpose, with listed exceptions such as treatment."
+    satisfied_by: [{ id: e1, text: "Minimum-necessary commitment or role-based PHI access" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Vendor receives full medical record where task needs only demographics" }]
+    default_severity: medium
+    doc_types: [baa, privacy_policy, security_policy]
+    mandatory_for: []
+    mappings: { gdpr: ["Art. 5(1)(c)", "Art. 25"], soc2: [CC6.3], iso27001: [A.8.3] }
+    keywords: [minimum necessary, need to know]
+    verify: confirmed
+
+  - id: HIPAA-164.514-deid
+    ref: "164.514(a)-(b)"
+    title: De-identification standard
+    requirement: "Data described as 'de-identified' meets either the Safe Harbor method (removal of the 18 listed identifiers, with no actual knowledge that the rest could identify someone) or Expert Determination."
+    satisfied_by: [{ id: e1, text: "Method named (Safe Harbor or Expert Determination)" }]
+    red_flags:
+      - { id: rf1, kind: regex, pattern: "(?i)(anonymi[sz]ed|de-?identified)(?![^.]{0,150}(164\\.514|safe harbo|expert determination))", note: "de-identified claimed without standard" }
+    default_severity: high
+    doc_types: [baa, msa, data_use_agreement]
+    mandatory_for: []
+    skills: [pii-phi-detection]
+    mappings: { gdpr: ["Art. 4(5)", "Recital 26"], soc2: [], iso27001: [A.8.11] }
+    keywords: [de-identified, safe harbor, expert determination, anonymized]
+    verify: confirmed
+
+  # ---------- Security Rule ----------
+  - id: HIPAA-164.308-risk
+    ref: "164.308(a)(1)(ii)(A)-(B)"
+    title: Risk analysis and risk management
+    requirement: "An accurate, thorough assessment of risks to the confidentiality, integrity and availability of ePHI is carried out, and enough security measures are implemented to bring the risks to a reasonable level."
+    satisfied_by: [{ id: e1, text: "Periodic risk analysis covering ePHI" }, { id: e2, text: "Risk management plan" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [security_policy]
+    mandatory_for: [security_policy]
+    mappings: { gdpr: ["Art. 32", "Art. 35"], soc2: [CC3.2], iso27001: [A.5.1] }
+    keywords: [risk analysis, risk assessment, risk management, ePHI]
+    verify: confirmed
+
+  - id: HIPAA-164.308-incident
+    ref: "164.308(a)(6)"
+    title: Security incident procedures
+    requirement: "Security incidents are identified and responded to, harmful effects are mitigated where practicable, and incidents and their outcomes are documented."
+    satisfied_by: [{ id: e1, text: "Incident identification and response" }, { id: e2, text: "Documentation of incidents" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [security_policy]
+    mandatory_for: [security_policy]
+    mappings: { gdpr: ["Art. 33(5)"], soc2: [CC7.3, CC7.4], iso27001: [A.5.24, A.5.26] }
+    keywords: [security incident, response, mitigation]
+    verify: confirmed
+
+  - id: HIPAA-164.308-contingency
+    ref: "164.308(a)(7)"
+    title: Contingency plan
+    requirement: "A contingency plan is in place: data backup, disaster recovery, emergency mode operation, plus testing and criticality analysis (the last two are addressable)."
+    satisfied_by: [{ id: e1, text: "Backup plan" }, { id: e2, text: "Disaster recovery plan" }, { id: e3, text: "Emergency mode operations" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy, bcp_policy]
+    mandatory_for: []
+    mappings: { gdpr: ["Art. 32(1)(c)"], soc2: [A1.2, A1.3, CC7.5], iso27001: [A.5.30, A.8.13] }
+    keywords: [contingency, backup, disaster recovery, emergency mode]
+    verify: confirmed
+
+  - id: HIPAA-164.312-access
+    ref: "164.312(a)(1), 164.312(a)(2)(i), 164.312(d)"
+    title: Access control, unique user IDs and authentication
+    requirement: "Access to ePHI is limited to authorised people and software, each user has a unique ID, and identities are verified before access."
+    satisfied_by: [{ id: e1, text: "Unique user identification" }, { id: e2, text: "Person/entity authentication (MFA recommended)" }, { id: e3, text: "Emergency access procedure" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(shared|generic) (accounts?|logins?|credentials)", note: "shared accounts" }]
+    default_severity: high
+    doc_types: [security_policy, baa]
+    mandatory_for: [security_policy]
+    mappings: { gdpr: ["Art. 32"], soc2: [CC6.1, CC6.2], iso27001: [A.5.15, A.5.16, A.8.5] }
+    keywords: [unique user, authentication, access control, MFA]
+    verify: confirmed
+
+  - id: HIPAA-164.312-enc
+    ref: "164.312(a)(2)(iv), 164.312(e)(1), 164.312(e)(2)(ii)"
+    title: Encryption at rest and transmission security
+    requirement: "ePHI is protected at rest and in transit. Encryption is addressable: implement it or document an equivalent alternative. Unsecured PHI (not encrypted to HHS guidance) triggers breach notification if compromised."
+    satisfied_by: [{ id: e1, text: "Encryption at rest" }, { id: e2, text: "Encryption in transit" }, { id: e3, text: "Or documented equivalent alternative" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)encrypt\\w*.{0,40}(where (feasible|practicable)|upon request|optional)", note: "conditional encryption" }]
+    default_severity: high
+    doc_types: [security_policy, baa, msa]
+    mandatory_for: []
+    mappings: { gdpr: ["Art. 32(1)(a)"], soc2: [CC6.1, CC6.7], iso27001: [A.8.24] }
+    keywords: [encryption, TLS, at rest, in transit, transmission security]
+    verify: confirmed     # eCFR 2026-10-01: still Addressable. NPRM 90 FR 898 (RIN 0945-AA22) not final; Unified Agenda: long-term, final action projected 07/2027
+
+  - id: HIPAA-164.312-audit
+    ref: "164.312(b), 164.308(a)(1)(ii)(D)"
+    title: Audit controls and activity review
+    requirement: "Mechanisms record and examine activity in systems containing ePHI, and those records are reviewed regularly."
+    satisfied_by: [{ id: e1, text: "Audit logging of ePHI access" }, { id: e2, text: "Regular log review" }]
+    red_flags: []
+    default_severity: medium
+    doc_types: [security_policy]
+    mandatory_for: []
+    mappings: { gdpr: ["Art. 32"], soc2: [CC7.2], iso27001: [A.8.15, A.8.16] }
+    keywords: [audit log, activity review, access log]
+    verify: confirmed
+
+  - id: HIPAA-164.316-retention
+    ref: "164.316(b)(2)(i), 164.530(j)(2)"
+    title: Six-year documentation retention
+    requirement: "Required policies, procedures and documentation are kept for 6 years from creation or last effective date, whichever is later. This covers documentation only, not PHI itself."
+    satisfied_by: [{ id: e1, text: "Retention >= 6 years for HIPAA documentation" }]
+    red_flags: []
+    default_severity: low
+    doc_types: [security_policy, retention_policy]
+    mandatory_for: []
+    params: { min_retention_years: 6 }
+    skills: [retention-period-extraction]
+    mappings: { gdpr: ["Art. 5(2)"], soc2: [], iso27001: [A.5.33] }
+    keywords: [retention, six years, documentation]
+    verify: confirmed
+
+  # ---------- Breach Notification Rule ----------
+  - id: HIPAA-164.404
+    ref: "164.402, 164.404"
+    title: Breach notification to individuals
+    requirement: "After discovering a breach of unsecured PHI, the covered entity notifies affected individuals without unreasonable delay and no later than 60 calendar days, with the required content. Breach is presumed unless a 4-factor risk assessment shows a low probability of compromise."
+    satisfied_by: [{ id: e1, text: "60-day outer limit" }, { id: e2, text: "Risk assessment (4 factors)" }, { id: e3, text: "Required content of notice" }]
+    red_flags: [{ id: rf1, kind: semantic, text: "Notification only if harm is 'confirmed' (pre-2013 harm standard)" }]
+    default_severity: critical
+    doc_types: [security_policy, privacy_policy]
+    mandatory_for: []
+    params: { max_notification_days: 60 }
+    skills: [breach-notification-timeline]
+    mappings: { gdpr: ["Art. 34"], soc2: [P6.6, CC7.4], iso27001: [A.5.26] }
+    keywords: [breach, notification, individuals, 60 days, unsecured PHI]
+    verify: confirmed
+
+  - id: HIPAA-164.406-408
+    ref: "164.406, 164.408"
+    title: Media and HHS Secretary notification
+    requirement: "Breaches affecting more than 500 residents of a State or jurisdiction need prominent media notice. HHS is notified at the same time as individuals for 500 or more, or via an annual log within 60 days of year end for fewer than 500."
+    satisfied_by: [{ id: e1, text: "Media notice threshold" }, { id: e2, text: "Secretary notice paths (>=500 / <500)" }]
+    red_flags: []
+    default_severity: high
+    doc_types: [security_policy]
+    mandatory_for: []
+    skills: [breach-notification-timeline]
+    mappings: { gdpr: ["Art. 33(1)"], soc2: [CC7.4], iso27001: [A.5.26] }
+    keywords: [media, Secretary, HHS, 500]
+    verify: confirmed
+
+  - id: HIPAA-164.410
+    ref: "164.410"
+    title: Business associate notification to covered entity
+    requirement: "After discovering a breach of unsecured PHI, the BA notifies the covered entity without unreasonable delay and no later than 60 calendar days, identifying affected individuals where possible."
+    satisfied_by: [{ id: e1, text: "Timeframe <= 60 days (shorter preferred)" }, { id: e2, text: "Identification of individuals and available info" }, { id: e3, text: "Discovery = known or should reasonably have been known" }]
+    red_flags: [{ id: rf1, kind: regex, pattern: "(?i)(after|upon) (completion of|concluding) (its|the) investigation", note: "delayed trigger" }]
+    default_severity: critical
+    doc_types: [baa]
+    mandatory_for: [baa]
+    params: { max_notification_days: 60 }
+    skills: [breach-notification-timeline]
+    mappings: { gdpr: ["Art. 33(2)"], soc2: [CC7.4], iso27001: [A.5.24, A.5.26] }
+    keywords: [discovery, notify covered entity, breach of unsecured PHI]
+    verify: confirmed

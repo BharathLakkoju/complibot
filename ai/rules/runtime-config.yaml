@@ -1,0 +1,66 @@
+# Single source of truth for runtime thresholds. Loaded by workers at start; changes go through PR + eval gate.
+# Reconciled with docs/PRD.md (D-01, D-11, Q-07, NFRs) on 2026-10-05.
+version: 4
+environment: demo                 # MVP has exactly one environment (PRD §6, C-11)
+
+confidence:                       # rules/04. Bands are shown as High/Medium/Low with a reason, never a %.
+  abstain_below: 0.55             # < : not a finding; control listed as "needs manual check" in coverage
+  high_min: 0.85                  # >= : High
+  low_below: 0.70                 # [0.55, 0.70) : Low (dashed border, "Needs careful review"); [0.70, 0.85) : Medium
+                                  # low_below is PROVISIONAL (PRD Q-07): reset from the first calibration run on gold v0.
+  absence_cap: 0.80               # absence (gap) findings never reach High
+  uncalibrated_label: "Uncalibrated estimate"   # shown until a calibrator artifact exists for (packVersion, modelId)
+
+verifier:
+  max_quote_chars: 400
+  max_citations: 3
+  fuzzy_repair_min: 0.97
+  entailment_min: 0.5
+  absence_max_similarity: 0.55
+  retries_before_discard: 1       # PRD §9: retried once, then discarded and counted
+
+assessor:                         # C-17: one setting for production and eval consistency runs
+  samples: 1
+  temperature: 0                  # matches the eval consistency protocol (3 runs at temperature 0)
+remediation:
+  model_tier: fast                # C-19 cost check: keeps 1 framework under $0.50 (agents/cost-model.md)
+  temperature: 0
+mapper:
+  min_score: 0.35
+  max_candidates_per_control: 6
+
+publish:
+  kinds: [violation, gap, partial]   # compliant results are stored for coverage/eval, not published (engineering §2.2)
+  token_streaming: true              # D-10; false => whole-finding events only
+
+limits:                           # FR-04
+  max_upload_mb: 10
+  max_pages: 50
+  ocr_enabled: false              # Phase 2 (FR-22); scanned PDFs are rejected at upload
+
+budgets:                          # C-18, C-19; see agents/cost-model.md
+  review_deadline_s: 900          # NFR: no review 'running' > 15 min
+  per_call_timeout_s: 60
+  max_tokens_per_review:
+    base: 30000                   # ingestion + embeddings
+    per_framework: 240000         # ~1.2x the estimated ~200k tokens for 20 pages / 1 framework
+  max_cost_usd_per_review:
+    per_framework: 0.48           # hard stop below the $0.50 / $1.00 targets; estimate at us_geo prices is $0.46 / $0.90 (agents/cost-model.md)
+  max_llm_calls_per_framework: 300
+  degrade_at_fraction: 0.8        # at 80%: skip remediation for low/info, keep assessing
+
+retries: { max: 3, backoff: exponential_jitter, base_ms: 500 }   # NFR: 3x then DLQ
+
+models:                           # IDs come from SSM via env, never hard-coded (PRD Q-03, recommended default)
+  region: ${AWS_REGION}           # Q-03 default: us-east-1
+  fast: ${BEDROCK_MODEL_FAST}           # Q-03 default: Claude Haiku 4.5
+  reasoning: ${BEDROCK_MODEL_REASONING} # Q-03 default: Claude Sonnet 5
+  embeddings: ${BEDROCK_MODEL_EMBED}    # Q-03 default: Titan Text Embeddings V2
+  dev_fallback: openrouter        # APP_ENV=local only; synthetic/public docs only
+
+price_table:                      # USD per 1M tokens, on-demand standard tier. Used for costUsd and the cost guard.
+  source: "AWS Price List API, us-east-1: AmazonBedrockFoundationModels offer (published 2026-09-30) and AmazonBedrock offer (published 2026-10-03); read 2026-10-05"
+  endpoint: us_geo                # pinned profiles are us.* (data stays in US regions); deploy-to-aws step 3
+  claude-haiku-4.5:    { input: 1.10, output: 5.50, global: { input: 1.00, output: 5.00 } }
+  claude-sonnet-5:     { input: 2.20, output: 11.00, global: { input: 2.00, output: 10.00 } }
+  titan-embed-text-v2: { input: 0.02 }

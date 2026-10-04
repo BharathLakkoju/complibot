@@ -1,0 +1,16 @@
+---
+description: FastAPI and Python conventions for apps/api and apps/worker
+globs: apps/api/**/*.py,apps/worker/**/*.py
+alwaysApply: false
+---
+- Python 3.12. Use `uv` for deps. Ruff and mypy --strict must pass.
+- Routers are thin: validate → call a service → map to a response model. Business logic lives in `services/`, and DB access in `db/repositories/`.
+- Every route declares `response_model` with generated Pydantic types from `packages/schemas`. Never return ORM objects.
+- Routes live under `/v1`. Dependencies: `get_db` (async session per request, with `SET app.tenant_id` for RLS), `current_user` (Cognito JWT), and `require_project_role("owner"|"reviewer"|"viewer")` from **project membership** (D-03). Cross-tenant access returns 404, not 403.
+- SQLAlchemy 2.0 typed `Mapped[]` models, asyncpg, with `selectinload` for relationships. No lazy loading in async code.
+- Errors: raise domain exceptions (`NotFound`, `Forbidden`, `Conflict`). A single exception handler maps them to RFC 9457 problem+json. Don't raise `HTTPException` from services.
+- Uploads: the client gets a presigned S3 PUT (content-type and ≤ 10 MB limit in the policy), then calls `POST /v1/documents/{id}/complete`. The worker checks the MIME type, ≤ 50 pages, text layer, encryption, and corruption before the document becomes `parsed`. Rejections set `failed` with a readable reason, and no review is enqueued (FR-04).
+- Background work always goes to SQS, never FastAPI `BackgroundTasks`, for anything that touches an LLM or takes over 1s.
+- Workers: handlers are idempotent on `(review_id, stage, shard, input_hash)`. Delete the SQS message only after commit. Use a visibility-timeout heartbeat for long tasks.
+- Config via `pydantic-settings`. Settings are loaded once and injected, never `os.environ` scattered through the code.
+- Pagination is cursor-based (`?cursor=&limit=`). IDs are ULIDs with a type prefix (`fnd_`, `rev_`, `doc_`).
