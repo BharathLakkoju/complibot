@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Draft v0.1 · 2026-10-05 IST · provisional decisions referenced as D-xx ([PRD §19](PRD.md#19-decisions-log)) |
-| **Source** | [`input/design.md`](../input/design.md) (Design Head), contrast check [`input/design-contrast.py`](../input/design-contrast.py) → [`input/design-contrast.json`](../input/design-contrast.json) |
+| **Source** | [`sources/design.md`](sources/design.md) (Design Head), contrast check [`sources/design-contrast.py`](sources/design-contrast.py) → [`sources/design-contrast.json`](sources/design-contrast.json) |
 | **Stack** | Next.js 16 · React 19 · TypeScript · Tailwind 4 · Phosphor icons |
 | **Related** | [`PRD.md`](PRD.md) · [`ACCEPTANCE-CRITERIA.md`](ACCEPTANCE-CRITERIA.md) (UX criteria are AC-UX-*, AC-STR-*, AC-COL-*) |
 
@@ -386,7 +386,7 @@ Underline styles (solid / dashed / dotted) keep severity distinguishable in gray
 
 Method: OKLCH → linear sRGB → gamut-fit (reduce chroma) → 8-bit sRGB → WCAG 2.x relative luminance. Text needs 4.5:1. Non-text (focus ring, control borders, solid badges on surface, underline marker on its own highlight) needs 3:1.
 
-**Result: 136 / 136 checks pass (68 pairs × light and dark).** Re-run on 2026-10-05 with `python3 input/design-contrast.py`: "136 pairs; fails: 0". Lowest text pair: light `text-muted` on `surface-3`, 5.00:1. Lowest non-text pair: light `border-strong` on `bg`, 3.47:1.
+**Result: 136 / 136 checks pass (68 pairs × light and dark).** Re-run on 2026-10-05 with `python docs/sources/design-contrast.py`: "136 pairs; fails: 0". Lowest text pair: light `text-muted` on `surface-3`, 5.00:1. Lowest non-text pair: light `border-strong` on `bg`, 3.47:1.
 
 | Foreground | Background | Type (min) | Light | Dark |
 |---|---|---|---|---|

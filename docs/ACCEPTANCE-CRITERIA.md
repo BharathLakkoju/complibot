@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Draft v0.1 · 2026-10-05 IST · decisions D-xx are provisional ([PRD §19](PRD.md#19-decisions-log)) |
-| **Sources** | Engineering criteria AC-1…AC-17 + NFR targets ([`input/engineering.md`](../input/engineering.md) §4), design criteria AC-1…AC-32 ([`input/design.md`](../input/design.md) §5), PRD decisions |
+| **Sources** | Engineering criteria AC-1…AC-17 + NFR targets ([`sources/engineering.md`](sources/engineering.md) §4), design criteria AC-1…AC-32 ([`sources/design.md`](sources/design.md) §5), PRD decisions |
 | **Related** | [`PRD.md`](PRD.md) · [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md) · agent and rule specs in [`../ai/`](../ai/) |
 
 **Conventions**

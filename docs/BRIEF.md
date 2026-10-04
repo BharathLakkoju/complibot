@@ -14,4 +14,4 @@ Teams upload contracts / policy documents. AI agents check them against selectab
 
 ## Deliverables being produced (in /workspace/compliance-copilot/)
 PRD, design system, acceptance criteria, and AI agent/skill/rule definitions for the five frameworks.
-Teammate inputs go in /workspace/compliance-copilot/input/.
+Teammate inputs live in `docs/sources/` (merged into the PRD and design system).

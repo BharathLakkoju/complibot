@@ -1,0 +1,141 @@
+# Shared Finding schema (wire format). Single source of truth, reconciled with docs/PRD §12 and
+# input/engineering.md §2.2 (PRD Q-08: ai/agents/schemas is the codegen source; copied to packages/schemas/).
+# JSON Schema (draft 2020-12) in YAML. Wire names are camelCase. Python models use snake_case with
+# camelCase aliases (Pydantic alias_generator=to_camel, populate_by_name=True). TS types are generated.
+#
+# Two orthogonal axes (PRD §12):
+#   kind   = what the AI found     -> violation | gap | partial | compliant
+#   status = what humans decided   -> open | accepted | rejected | edited | escalated
+# Pipeline-internal states (streaming draft, retracted by the verifier) are NOT finding statuses:
+# drafts exist only as ephemeral finding.delta {draftId}; retractions are counted in review.status.
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://compliance-copilot.dev/schemas/finding/v1"
+title: Finding
+type: object
+additionalProperties: false
+required: [id, schemaVersion, tenantId, projectId, reviewId, framework, controlId, controlRef, kind,
+           title, severity, confidence, rationale, citations, status, version, provenance, createdAt]
+properties:
+  id:            { type: string, pattern: "^fnd_[0-9A-HJKMNP-TV-Z]{26}$", description: "ULID with type prefix" }
+  schemaVersion: { const: "1.0" }
+  tenantId:      { type: string }
+  projectId:     { type: string }
+  reviewId:      { type: string }
+  framework:     { enum: [GDPR, SOC2, ISO27001, HIPAA, INTERNAL] }
+  controlId:     { type: string, examples: ["GDPR-33.2", "SOC2-CC6.1"], description: "pack control id (closed list from the pinned pack)" }
+  controlRef:    { type: string, examples: ["GDPR Art. 33(2)", "SOC2 CC6.1", "ISO27001 A.5.15"], description: "display reference" }
+  kind:
+    enum: [violation, gap, partial, compliant]
+    description: >
+      violation = cited text contradicts the requirement.
+      gap       = a required provision is absent (absence finding: citations empty, absenceEvidence required).
+      partial   = cited text addresses the requirement incompletely or with a weakening qualifier.
+      compliant = cited text meets the requirement. Recorded for coverage/eval; not published as a finding in the MVP.
+      (Controls that do not apply are not findings; they appear in report coverage as out of scope with a reason.)
+  title:     { type: string, maxLength: 140 }
+  severity:  { enum: [critical, high, medium, low, info] }
+  likelihood: { enum: [almost_certain, likely, possible, unlikely, rare] }
+  riskScore: { type: integer, minimum: 1, maximum: 25, description: "severity weight x likelihood weight (rules/03)" }
+  confidence:
+    type: object
+    additionalProperties: false
+    required: [score, band, reason, calibrated]
+    properties:
+      score:      { type: number, minimum: 0, maximum: 1, description: "never displayed as a percentage (D-11)" }
+      band:       { enum: [high, medium, low], description: "rules/04; abstentions are never findings" }
+      reason:     { type: string, maxLength: 160, description: "one-line reason shown next to the band" }
+      calibrated: { type: boolean, description: "false => UI tooltip 'Uncalibrated estimate'" }
+      signals:    { type: object, additionalProperties: { type: number }, description: "raw calibration inputs, audit only" }
+  systemFlags:
+    type: array
+    uniqueItems: true
+    description: >
+      System routing hints (renamed from the old 'escalated' routing so it never collides with the human
+      Escalate decision, PRD C-04). Rendered as reasons on the card; they do not change status.
+    items: { enum: [critical_severity, absence_finding, verifier_disagreement, injection_suspected, mapper_degraded, citation_repaired] }
+  rationale: { type: string, maxLength: 1500 }
+  remediation:
+    type: [object, "null"]
+    additionalProperties: false
+    properties:
+      summary:         { type: string, maxLength: 400 }
+      suggestedClause: { type: string, maxLength: 2000 }
+      effort:          { enum: [trivial, moderate, significant] }
+      ownerHint:       { enum: [legal, security, privacy, engineering, procurement] }
+  citations:
+    type: array
+    maxItems: 3
+    items:
+      type: object
+      additionalProperties: false
+      required: [documentId, chunkId, charStart, charEnd, quote]
+      properties:
+        documentId:  { type: string }
+        chunkId:     { type: string }
+        sectionPath: { type: [string, "null"], examples: ["12.3(b)"] }
+        page:        { type: [integer, "null"], minimum: 1 }
+        charStart:   { type: integer, minimum: 0, description: "offset into the document's normalized text" }
+        charEnd:     { type: integer, minimum: 1, description: "exclusive" }
+        quote:       { type: string, minLength: 8, maxLength: 400, description: "MUST equal docText.slice(charStart, charEnd)" }
+  absenceEvidence:
+    type: [object, "null"]
+    additionalProperties: false
+    required: [searchedSections, queries, maxSimilarity]
+    properties:
+      searchedSections: { type: array, items: { type: string } }
+      queries:          { type: array, items: { type: string }, maxItems: 8 }
+      maxSimilarity:    { type: number, minimum: 0, maximum: 1 }
+      nearestChunkId:   { type: [string, "null"] }
+  crossFramework:
+    type: array
+    items: { type: string }
+    description: "indicative mappings from the pack, e.g. ISO27001:A.5.24"
+  evidenceLinks:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [kind, ref]
+      properties:
+        kind:  { enum: [document_span, control_reference, related_finding, external_reference] }
+        ref:   { type: string }
+        label: { type: string }
+  status:     { enum: [open, accepted, rejected, edited, escalated], description: "human decision state; 'open' = needs decision" }
+  assigneeId: { type: [string, "null"], description: "set when status = escalated (D-04)" }
+  version:    { type: integer, minimum: 1, description: "optimistic concurrency; bumped by every applied decision" }
+  decidedBy:  { type: [string, "null"] }
+  decidedAt:  { type: [string, "null"], format: date-time }
+  provenance:
+    type: object
+    additionalProperties: false
+    required: [provider, modelId, promptVersion, packVersion, agent]
+    properties:
+      provider:      { enum: [bedrock, openrouter] }
+      modelId:       { type: string }
+      promptVersion: { type: string }
+      packVersion:   { type: string }
+      agent:         { type: string }
+      runId:         { type: string }
+  createdAt: { type: string, format: date-time }
+allOf:
+  - if:   { properties: { kind: { const: gap } } }
+    then: { required: [absenceEvidence], properties: { absenceEvidence: { type: object }, citations: { maxItems: 0 } } }
+    else: { properties: { citations: { minItems: 1 } } }
+  - if:   { properties: { kind: { enum: [violation, gap, partial] } } }
+    then: { required: [likelihood, riskScore] }
+  - if:   { properties: { status: { const: escalated } } }
+    then: { required: [assigneeId], properties: { assigneeId: { type: string } } }
+
+# --- ReviewDecision (append-only; PRD §12 review_decision, D-03, D-04, D-12) -------------------
+# action      reason required (>= 10 chars)                  role            effect on finding.status
+# accept      no                                             reviewer, owner open|escalated -> accepted
+# reject      yes                                            reviewer, owner -> rejected
+# edit        only if severity changes                       reviewer, owner -> edited ("Accepted · edited")
+# escalate    yes + assigneeId                               reviewer, owner -> escalated
+# reopen      yes (except own undo within 8 s, AC-COL-08)    reviewer, owner -> open (change decision)
+# override    yes; Owner only; replaces another user's       owner           -> the overriding action's target state
+#             decision, logged with before/after
+# Fields: id, findingId, reviewId, action, actorId, at (server time), reason, before, after,
+#         findingVersion, clientMsgId, overridesDecisionId?, assigneeId?
+# Edit may change title, severity, rationale, remediation. Control re-mapping is not editable in the MVP
+# (PRD Q-09, recommended default): reject with "Incorrect mapping" and comment instead.

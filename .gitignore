@@ -1,0 +1,15 @@
+.venv/
+.data/
+node_modules/
+apps/web/.next/
+apps/web/node_modules/
+__pycache__/
+*.pyc
+.env
+apps/web/.env.local
+eval/results/*.json
+!eval/results/.gitkeep
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.db

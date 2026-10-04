@@ -1,0 +1,13 @@
+---
+description: Testing strategy - pytest, contract tests, eval harness, Playwright
+globs: **/tests/**,**/*.test.ts,**/*.spec.ts,eval/**,apps/web/e2e/**
+alwaysApply: false
+---
+- **Pytest layers**: `tests/unit` (pure, no network), `tests/integration` (testcontainers Postgres+pgvector and LocalStack, `@pytest.mark.integration`), `tests/contract` (schemas ↔ Pydantic ↔ TS; payloads validated against `events.yaml`). Name tests after their AC ID (e.g. `test_ac_str_07_replay_exact_range`).
+- LLM calls in unit and integration tests use `FakeLLM`, which replays recorded tool outputs keyed by prompt hash. Real model calls happen only in `eval run`.
+- Skills get table-driven tests (≥ 10 cases each), including the edge cases in their SKILL.md.
+- Verifier: hypothesis property tests check that random spans always pass the exact-span check, and mutated quotes always repair or fail.
+- Cross-tenant suite (AC-AUTH-02, AC-SEC-01) runs on every PR.
+- **Eval harness** (`eval/`): gold v0 in `eval/gold/v0/`, results in `eval/results/<git-sha>.json` plus a Markdown diff against the `main` baseline. The PR smoke gate (~4 docs, ≤ $2 target) is **regression-only until a baseline exists**: fail on citation existence < 100%, schema violations > 0, F1 or citation support −3 pts, hallucination +2 pts, or any injection fixture regression. Consistency = 3 runs at temperature 0 (the runtime setting). Report bootstrap 95% CIs, and mark per-control metrics with < 5 items "insufficient data".
+- **Playwright** (`apps/web/e2e`): sample contract → live findings ("Writing…" → published) → accept/reject with reason → a second browser context sees `decision.applied` → reconnect replay → Owner sign-off blocked until all decided → report export. Run axe in both themes. Wait on WS events with `expect.poll`, not timeouts.
+- Coverage ≥ 80% on changed lines. Flaky tests are quarantined with an issue link and never retried silently.

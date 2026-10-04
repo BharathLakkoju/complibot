@@ -1,0 +1,15 @@
+---
+description: Security, PII handling, logging and authorization (always on)
+globs:
+alwaysApply: true
+---
+- Treat every uploaded document as confidential and possibly hostile (prompt injection, malicious PDF). Parse in workers, never in the API process.
+- **Logging**: use `structlog` with the redaction processor. Never log document text, quotes, prompts, completions, rationale, comment bodies, or JWTs. Log ids, hashes, lengths, durations, and token counts. A test asserts redaction for each new log call site that handles document-derived data.
+- **AuthZ on every path**: REST, WebSocket messages, presigned URL issuance, report download, and sign-off. Check tenant, project membership, and role (`owner`/`reviewer`/`viewer`) server-side. Override and sign-off are Owner only. Never trust client-sent `user_id`.
+- Presigned URLs are ≤ 5 minutes and scoped to one object. Downloads set `Content-Disposition: attachment`.
+- Input limits: upload ≤ 10 MB / ≤ 50 pages, text-layer PDF, DOCX, or TXT (scanned PDFs are rejected; OCR is Phase 2); comment ≤ 2,000 chars; decision reasons ≥ 10 chars where required; WS message ≤ 64 KB.
+- Dependencies: `pip-audit` and `pnpm audit` in CI, and Dependabot enabled. No new dependency without a short justification in the PR.
+- Web: strict CSP (nonce-based), `X-Frame-Options: DENY` (except the document viewer iframe, if used, with `sandbox`), cookies `HttpOnly; Secure; SameSite=Lax`. React renders quotes as text, so no `dangerouslySetInnerHTML` for document content.
+- The legal disclaimer (`ai/rules/02`) must render wherever findings, remediations, or reports appear. Removing it fails the Playwright test.
+- Audit trail: `review_decision` rows (accept, reject, edit, escalate, reopen, override) are append-only, with actor, server time, reason, and before/after. Comments, report generation, sign-off, "Confirm no findings", document deletes, and role changes also write audit entries. There is no update or delete path anywhere.
+- Demo data policy (D-08): show the "Demo only: use synthetic or public sample contracts" notice. The deployed env rejects OpenRouter by configuration.

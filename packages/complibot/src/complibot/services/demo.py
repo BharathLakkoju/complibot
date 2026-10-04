@@ -1,0 +1,45 @@
+from pathlib import Path
+
+SAMPLE_CONTRACT = """DATA PROCESSING ADDENDUM (SYNTHETIC SAMPLE — DEMO ONLY)
+
+1. Definitions
+"Personal Data" means any information relating to an identified or identifiable natural person.
+
+2. Processing
+2.1 The Processor shall process Personal Data only on documented instructions from the Controller.
+2.2 The Processor shall ensure that persons authorised to process Personal Data are bound by confidentiality.
+
+3. Security
+3.1 The Processor shall implement appropriate technical and organisational measures including encryption at rest and in transit.
+3.2 Security measures shall be reviewed annually.
+
+4. Sub-processors
+4.1 The Processor shall not engage another processor without prior specific or general written authorisation of the Controller.
+4.2 The Processor shall impose the same data protection obligations on sub-processors by way of contract.
+
+5. Data subject rights
+The Processor shall assist the Controller in responding to data subject requests within thirty (30) days.
+
+6. Personal data breach
+6.1 The Processor shall notify the Controller without undue delay after becoming aware of a personal data breach.
+6.2 Notification shall include the nature of the breach and likely consequences.
+
+7. Deletion and return
+Upon termination, the Processor shall delete or return all Personal Data within ninety (90) days unless law requires retention.
+
+8. International transfers
+Transfers outside the EEA require Standard Contractual Clauses or another valid transfer mechanism.
+
+9. Audit
+The Controller may audit compliance once per year upon thirty (30) days' notice.
+
+10. Liability
+Liability is capped at the fees paid in the twelve months preceding the claim.
+"""
+
+
+def load_sample_contract() -> str:
+    path = Path("data/fixtures/sample/synthetic-dpa.txt")
+    if path.exists():
+        return path.read_text(encoding="utf-8")
+    return SAMPLE_CONTRACT

@@ -1,0 +1,61 @@
+[project]
+name = "complibot"
+version = "0.1.0"
+description = "Real-time AI Compliance Review Copilot"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "sqlalchemy[asyncio]>=2.0.36",
+  "asyncpg>=0.30.0",
+  "aiosqlite>=0.20.0",
+  "alembic>=1.14.0",
+  "python-multipart>=0.0.12",
+  "httpx>=0.27.0",
+  "pyjwt[crypto]>=2.9.0",
+  "cryptography>=43.0.0",
+  "python-ulid>=2.7.0",
+  "boto3>=1.35.0",
+  "aioboto3>=13.2.0",
+  "pypdf>=5.1.0",
+  "python-docx>=1.1.2",
+  "pgvector>=0.3.6",
+  "pyyaml>=6.0.2",
+  "jinja2>=3.1.4",
+  "weasyprint>=63.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "ruff>=0.8.0",
+  "mypy>=1.13.0",
+  "types-pyyaml",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+packages = ["complibot", "complibot_worker"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["packages/complibot/src/complibot", "packages/complibot/src/complibot_worker"]

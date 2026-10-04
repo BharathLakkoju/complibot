@@ -4,7 +4,7 @@
 |---|---|
 | **Owner** | Bharath (full-stack developer) |
 | **Status** | Draft v0.1 · 2026-10-05 IST · all decisions provisional until Bharath confirms (see [Decisions log](#19-decisions-log)) |
-| **Sources** | [`BRIEF.md`](../BRIEF.md), [`input/engineering.md`](../input/engineering.md) (Head of Engg), [`input/design.md`](../input/design.md) + `input/design-contrast.*` (Design Head) |
+| **Sources** | [`BRIEF.md`](BRIEF.md), [`sources/engineering.md`](sources/engineering.md) (Head of Engg), [`sources/design.md`](sources/design.md) + `sources/design-contrast.*` (Design Head) |
 | **Companions** | [`DESIGN-SYSTEM.md`](DESIGN-SYSTEM.md), [`ACCEPTANCE-CRITERIA.md`](ACCEPTANCE-CRITERIA.md), AI definitions in [`../ai/`](../ai/) (agents, frameworks, skills, rules, build) |
 | **Purpose** | Portfolio project for interviews (Deloitte and similar) showing Python, applied AI, FastAPI, WebSockets and AWS |
 
