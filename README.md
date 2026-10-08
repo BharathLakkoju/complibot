@@ -39,6 +39,10 @@ Open [http://localhost:3000](http://localhost:3000) and click **Try with a sampl
 
 See [`AGENTS.md`](AGENTS.md) for the full command table (`make schemas`, `make packs-validate`, `eval run`, etc.).
 
+## Deploy to AWS
+
+Full click-by-click runbook (18 steps): [`docs/deploy/aws/README.md`](docs/deploy/aws/README.md).
+
 ## Demo data policy
 
 Use **synthetic or public sample contracts only**. Do not upload real confidential data in demo environments.

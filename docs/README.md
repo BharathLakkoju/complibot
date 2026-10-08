@@ -18,6 +18,7 @@ Portfolio project by Bharath: a real-time AI copilot that reviews contracts and 
 | **`eval/`** | Gold sets and harness results |
 | **`infra/terraform/`** | AWS IaC |
 | [`AGENTS.md`](../AGENTS.md) | Coding-agent conventions (canonical) |
+| [`deploy/aws/README.md`](deploy/aws/README.md) | **Step-by-step AWS + Vercel deployment** (console click-through) |
 
 ## Conventions
 - Every number is a **target** or **estimate** unless stated otherwise.
