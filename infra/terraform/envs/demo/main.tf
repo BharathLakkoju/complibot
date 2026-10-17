@@ -31,4 +31,6 @@ locals {
   name_prefix        = "${var.project}-${var.environment}"
   bucket_name        = "${var.project}-${var.environment}-documents-${data.aws_caller_identity.current.account_id}"
   backup_bucket_name = "${var.project}-${var.environment}-backups-${data.aws_caller_identity.current.account_id}"
+  # The UI is served from api_domain, so that origin is always allowed.
+  browser_origins = distinct(concat(["https://${var.api_domain}"], var.cors_allowed_origins))
 }

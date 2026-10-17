@@ -12,8 +12,8 @@ ssh_cidr = "203.0.113.10/32"
 api_domain = "api.demo.example.com"
 acme_email = "you@example.com"
 
-# Same origin as api_domain when the UI is served from EC2 (not Vercel).
-cors_allowed_origins = ["https://api.demo.example.com"]
+# https://<api_domain> is always allowed (UI is served from the same host). Add extra origins only if needed.
+# cors_allowed_origins = ["https://your-vercel-app.vercel.app"]
 
 # Public demo: allow passwordless dev login (any email). Default false for locked-down hosts.
 # dev_login_enabled = true

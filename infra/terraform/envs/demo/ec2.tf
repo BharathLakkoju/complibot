@@ -23,15 +23,15 @@ resource "aws_instance" "app" {
   }
 
   user_data = templatefile("${path.module}/user_data.sh.tpl", {
-    repository_url = var.repository_url
-    aws_region     = var.aws_region
-    s3_bucket      = aws_s3_bucket.documents.bucket
-    backup_bucket  = aws_s3_bucket.backups.bucket
-    sqs_queue_url  = aws_sqs_queue.review.url
-    api_domain          = var.api_domain
-    acme_email          = var.acme_email
-    cors_origins        = join(",", var.cors_allowed_origins)
-    dev_login_enabled   = var.dev_login_enabled
+    repository_url    = var.repository_url
+    aws_region        = var.aws_region
+    s3_bucket         = aws_s3_bucket.documents.bucket
+    backup_bucket     = aws_s3_bucket.backups.bucket
+    sqs_queue_url     = aws_sqs_queue.review.url
+    api_domain        = var.api_domain
+    acme_email        = var.acme_email
+    cors_origins      = join(",", local.browser_origins)
+    dev_login_enabled = var.dev_login_enabled
   })
 
   tags = {

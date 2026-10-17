@@ -19,6 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
       - run: uv sync --all-extras
       - run: uv run ruff check packages tests scripts
       - run: uv run ruff format --check packages tests scripts
@@ -37,6 +40,8 @@ jobs:
       - run: terraform fmt -check -recursive infra/terraform/envs/demo
         working-directory: .
       - run: terraform init -backend=false -input=false && terraform validate
+        working-directory: infra/terraform/envs/demo
+      - run: terraform test
         working-directory: infra/terraform/envs/demo
       - run: >-
           checkov -d infra/terraform/envs/demo --framework terraform --skip-path .terraform

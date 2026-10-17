@@ -46,8 +46,8 @@ variable "api_cidr" {
 
 variable "cors_allowed_origins" {
   type        = list(string)
-  description = "Browser origins for API CORS and S3 presigned PUT CORS (use https://<api_domain> for single-origin EC2)."
-  default     = ["https://your-vercel-app.vercel.app"]
+  description = "Extra browser origins for API CORS and S3 presigned PUT CORS; https://<api_domain> is always included."
+  default     = []
 }
 
 variable "ssh_key_name" {
