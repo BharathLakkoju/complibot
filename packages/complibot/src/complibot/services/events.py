@@ -1,12 +1,11 @@
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from complibot.db.models import Review, ReviewEvent
 from complibot.ids import new_event_id
 from complibot.ws.hub import review_hub
+from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def append_review_event(
@@ -17,7 +16,9 @@ async def append_review_event(
     event_type: str,
     payload: dict[str, Any],
 ) -> ReviewEvent:
-    result = await db.execute(select(Review).where(Review.id == review_id, Review.tenant_id == tenant_id))
+    result = await db.execute(
+        select(Review).where(Review.id == review_id, Review.tenant_id == tenant_id)
+    )
     review = result.scalar_one()
     next_seq = int(review.last_seq) + 1
     event = ReviewEvent(

@@ -2,8 +2,8 @@ aws_region    = "ap-south-1"
 instance_type = "t4g.micro"
 root_volume_gb = 20
 
-# Replace with your office/home IP (e.g. "203.0.113.10/32") before apply.
-ssh_cidr = "0.0.0.0/0"
+# Replace with your office/home IP before apply.
+ssh_cidr = "203.0.113.10/32"
 
 # Optional: EC2 key pair name in ap-south-1 for SSH.
 # ssh_key_name = "complibot-demo"

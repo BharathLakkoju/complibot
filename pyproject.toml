@@ -47,6 +47,13 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = [
+  "B008", # Depends() in parameter defaults is the FastAPI dependency-injection idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Verbatim demo contract lines must not be wrapped (citation offsets).
+"packages/complibot/src/complibot/services/demo.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

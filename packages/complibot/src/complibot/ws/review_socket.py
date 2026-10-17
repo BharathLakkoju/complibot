@@ -4,14 +4,13 @@ from datetime import UTC, datetime
 from typing import Any
 
 import jwt
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from sqlalchemy import select
-
 from complibot.config import get_settings
 from complibot.db.models import ProjectMember, Review, ReviewEvent
 from complibot.db.session import SessionLocal
 from complibot.services.events import append_review_event
 from complibot.ws.hub import review_hub
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 
 router = APIRouter()
 

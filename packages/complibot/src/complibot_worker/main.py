@@ -3,12 +3,11 @@ import json
 import logging
 
 import aioboto3
-from botocore.config import Config
-from sqlalchemy import select
-
 from complibot.config import get_settings
 from complibot.db.models import Review
 from complibot.db.session import SessionLocal
+from sqlalchemy import select
+
 from complibot_worker.pipeline.mock_review import run_mock_review
 
 logging.basicConfig(level=logging.INFO)

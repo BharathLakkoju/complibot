@@ -1,11 +1,10 @@
 import asyncio
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
 from complibot.db.base import Base
 from complibot.db.session import engine
 from complibot.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.fixture(autouse=True)

@@ -7,14 +7,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from complibot.db.models import Document, FindingRow, Review
 from complibot.ids import new_finding_id, new_id
 from complibot.schemas import Citation, Confidence, Finding, FindingProvenance, Remediation
 from complibot.services.events import append_review_event
 from complibot.ws.hub import review_hub
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def _load_pack_controls(framework: str, frameworks_path: str) -> list[dict[str, Any]]:
@@ -130,7 +129,9 @@ async def run_mock_review(
                 control_ref=ref,
                 kind="partial",
                 title=f"Review needed: {ctrl.get('title', ref)[:120]}",
-                severity=_coerce_severity(ctrl.get("defaultSeverity") or ctrl.get("default_severity")),
+                severity=_coerce_severity(
+                    ctrl.get("defaultSeverity") or ctrl.get("default_severity")
+                ),
                 confidence=Confidence(
                     score=0.78,
                     band="medium",

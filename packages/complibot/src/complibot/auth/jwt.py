@@ -2,15 +2,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
-from fastapi import Depends, Header
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from complibot.config import get_settings
 from complibot.db.models import User
 from complibot.db.session import get_db
 from complibot.exceptions import Forbidden, NotFound
 from complibot.schemas import UserOut
+from fastapi import Depends, Header
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class AuthUser:

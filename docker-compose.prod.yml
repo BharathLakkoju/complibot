@@ -4,9 +4,10 @@ services:
   postgres:
     image: pgvector/pgvector:pg16
     network_mode: host
+    command: ["postgres", "-c", "listen_addresses=127.0.0.1"]
     environment:
       POSTGRES_USER: complibot
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-complibot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       POSTGRES_DB: complibot
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -26,7 +27,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:-complibot}@127.0.0.1:5432/complibot?ssl=disable
+      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@127.0.0.1:5432/complibot?ssl=disable
       AWS_ENDPOINT_URL: ""
       INLINE_WORKER: "false"
     depends_on:
@@ -49,7 +50,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:-complibot}@127.0.0.1:5432/complibot?ssl=disable
+      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@127.0.0.1:5432/complibot?ssl=disable
       AWS_ENDPOINT_URL: ""
       INLINE_WORKER: "false"
     depends_on:
@@ -58,6 +59,8 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      disable: true
 
 volumes:
   pgdata:

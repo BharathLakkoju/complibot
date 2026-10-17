@@ -31,7 +31,11 @@ variable "root_volume_gb" {
 variable "ssh_cidr" {
   type        = string
   description = "CIDR allowed to SSH (port 22). Restrict to your IP before apply."
-  default     = "0.0.0.0/0"
+
+  validation {
+    condition     = var.ssh_cidr != "0.0.0.0/0"
+    error_message = "ssh_cidr must not be 0.0.0.0/0; set your office or home IP (e.g. 203.0.113.10/32)."
+  }
 }
 
 variable "api_cidr" {

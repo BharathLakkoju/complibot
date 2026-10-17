@@ -3,7 +3,6 @@ from typing import Any
 
 import aioboto3
 from botocore.config import Config
-
 from complibot.config import Settings
 
 

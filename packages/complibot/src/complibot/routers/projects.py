@@ -6,14 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from complibot.auth.jwt import AuthUser, current_user
 from complibot.auth.roles import require_project_role
+from complibot.config import get_settings
 from complibot.db.models import Document, Project, ProjectMember, Review
 from complibot.db.session import get_db
 from complibot.exceptions import BadRequest
-from complibot.ids import new_id, new_document_id, new_project_id, new_review_id
+from complibot.ids import new_document_id, new_id, new_project_id, new_review_id
 from complibot.schemas import ProjectCreate, ProjectOut, ReviewCreate, ReviewOut
-from complibot.services.queue import dispatch_review_job
 from complibot.services.demo import load_sample_contract
-from complibot.config import get_settings
+from complibot.services.queue import dispatch_review_job
 
 router = APIRouter(prefix="/v1/projects", tags=["projects"])
 

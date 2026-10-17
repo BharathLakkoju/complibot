@@ -129,11 +129,21 @@ Empty the S3 bucket first if `terraform destroy` fails on bucket versioning.
 
 ## Local verification (no AWS)
 
+`docker-compose.prod.yml` uses **host networking** so API/worker talk to Postgres on `127.0.0.1:5432` (one physical host / EC2 instance). Do not expose port 5432 in the EC2 security group.
+
 ```bash
 cp .env.example .env
-# Use local DATABASE_URL sqlite or compose postgres; for prod compose:
-echo 'POSTGRES_PASSWORD=complibot' >> .env
+export POSTGRES_PASSWORD='choose-a-strong-local-password'
+grep -q '^POSTGRES_PASSWORD=' .env && sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env \
+  || echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
 docker compose -f docker-compose.prod.yml config
 docker compose -f docker-compose.prod.yml up -d --build
-curl -fsS http://localhost:8000/health
+# wait for healthy, then:
+curl -fsS http://127.0.0.1:8000/health
+# expected body: {"status":"ok"}
+
+# optional: from inside the API container
+docker compose -f docker-compose.prod.yml exec api curl -fsS http://127.0.0.1:8000/health
 ```
+
+**Bridge networking note:** On some nested/containerized dev VMs, Docker bridge traffic between containers can time out while host-published ports work. Host networking matches the single-EC2 production shape and avoids that class of issue.

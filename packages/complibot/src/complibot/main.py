@@ -41,7 +41,11 @@ app.add_middleware(
 async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status,
-        content={"type": f"https://complibot.dev/errors/{exc.code}", "title": exc.code, "detail": exc.message},
+        content={
+            "type": f"https://complibot.dev/errors/{exc.code}",
+            "title": exc.code,
+            "detail": exc.message,
+        },
     )
 
 
