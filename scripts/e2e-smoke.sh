@@ -27,6 +27,18 @@ DID=$(echo "$DOC" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"
 echo "documentId=$DID status=$(echo "$DOC" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')"
 
 echo ""
+echo "=== Presign upload (txt) ==="
+PRESIGN=$(curl -fsS -X POST "$API/v1/projects/$PID/documents/presign" -H "$AUTH" -H 'Content-Type: application/json' \
+  -d '{"filename":"e2e-upload.txt","contentType":"text/plain","sizeBytes":64}')
+UPLOAD_URL=$(echo "$PRESIGN" | python3 -c 'import sys,json; print(json.load(sys.stdin)["uploadUrl"])')
+UPLOAD_DOC=$(echo "$PRESIGN" | python3 -c 'import sys,json; print(json.load(sys.stdin)["documentId"])')
+echo "presign documentId=$UPLOAD_DOC"
+printf 'E2E presign upload body for compliance review pipeline smoke test.\n' | curl -fsS -X PUT "$UPLOAD_URL" \
+  -H 'Content-Type: text/plain' --data-binary @-
+COMPLETE=$(curl -fsS -X POST "$API/v1/documents/$UPLOAD_DOC/complete" -H "$AUTH")
+echo "upload complete status=$(echo "$COMPLETE" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')"
+
+echo ""
 echo "=== Start review ==="
 REV=$(curl -fsS -X POST "$API/v1/projects/$PID/reviews" -H "$AUTH" -H 'Content-Type: application/json' \
   -d "{\"documentIds\":[\"$DID\"]}")

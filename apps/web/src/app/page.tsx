@@ -3,10 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { apiFetch } from "@/lib/api";
+import { setStoredAuthToken } from "@/lib/authToken";
 
 export default function HomePage() {
   const router = useRouter();
+  const { isSignedIn, ready, user } = useAuthSession();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,7 +21,7 @@ export default function HomePage() {
         method: "POST",
         body: JSON.stringify({ email: "demo@complibot.local", name: "Demo Analyst" }),
       });
-      localStorage.setItem("cc_token", login.accessToken);
+      setStoredAuthToken(login.accessToken);
       const project = await apiFetch<{ id: string }>("/v1/projects", {
         method: "POST",
         token: login.accessToken,
@@ -54,20 +57,32 @@ export default function HomePage() {
       >
         Demo only: use synthetic or public sample contracts. Don&apos;t upload real confidential data.
       </div>
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/login"
-          className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-3 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
-        >
-          Sign in
-        </Link>
-        <Link
-          href="/login?mode=register"
-          className="inline-flex items-center justify-center rounded-md border border-[var(--border-strong)] px-5 py-3 text-sm font-medium"
-        >
-          Create account
-        </Link>
-      </div>
+      {ready && isSignedIn && user ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-sm text-[var(--text-secondary)]">Signed in as {user.email}</p>
+          <Link
+            href="/projects"
+            className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-3 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
+          >
+            Go to projects
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/login"
+            className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-3 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
+          >
+            Sign in
+          </Link>
+          <Link
+            href="/login?mode=register"
+            className="inline-flex items-center justify-center rounded-md border border-[var(--border-strong)] px-5 py-3 text-sm font-medium"
+          >
+            Create account
+          </Link>
+        </div>
+      )}
       <button
         type="button"
         onClick={trySample}

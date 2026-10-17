@@ -1,3 +1,5 @@
+import { problemDetail } from "@/lib/problemDetail";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export function getApiUrl() {
@@ -23,7 +25,7 @@ export async function apiFetch<T>(
   const res = await fetch(`${API_URL}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail ?? res.statusText);
+    throw new Error(problemDetail(err, res.statusText));
   }
   return res.json() as Promise<T>;
 }
