@@ -19,6 +19,7 @@ if ! grep -qE '^API_DOMAIN=.+' .env || ! grep -qE '^ACME_EMAIL=.+' .env; then
   echo "Set API_DOMAIN and ACME_EMAIL in .env before deploy (DNS A record → this host)." >&2
   exit 1
 fi
+api_domain="$(grep -E '^API_DOMAIN=' .env | tail -n1 | cut -d= -f2-)"
 
 if [[ -d .git ]]; then
   git fetch origin "$BRANCH"
@@ -26,6 +27,8 @@ if [[ -d .git ]]; then
   git pull --ff-only origin "$BRANCH"
 fi
 
+# Always rebuild: web inlines NEXT_PUBLIC_API_URL at build time, so an API_DOMAIN change needs a new image.
+echo "Building images (web: NEXT_PUBLIC_API_URL=https://$api_domain)..."
 docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" build --pull
 docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" up -d
 
@@ -53,7 +56,6 @@ if [[ "$healthy" != 1 ]]; then
 fi
 
 if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
-  api_domain="$(grep -E '^API_DOMAIN=' .env | tail -n1 | cut -d= -f2-)"
   echo "Checking https://$api_domain/ and /health (Let's Encrypt can take a minute on first boot)..."
   for _ in $(seq 1 30); do
     if curl -fsS "https://$api_domain/health" >/dev/null 2>&1 \

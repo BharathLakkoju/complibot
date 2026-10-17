@@ -10,7 +10,7 @@ After deploy, open **`https://<API_DOMAIN>/`** (same value as Terraform `api_dom
 
 ### Hostname without a custom domain (sslip.io)
 
-If you do not have a DNS name yet, you can use **[sslip.io](https://sslip.io/)**: point `API_DOMAIN` at `<dashed-eip>.sslip.io`, where the Elastic IP `a.b.c.d` becomes `a-b-c-d.sslip.io` (e.g. `203.0.113.50` → `203-0-113-50.sslip.io`). Create an **A record** is not required — sslip.io resolves to that IP automatically. Let's Encrypt still needs ports 80/443 reachable (`api_cidr` default `0.0.0.0/0`).
+If you do not have a DNS name yet, use **[sslip.io](https://sslip.io/)**: set `api_domain` / `API_DOMAIN` to `<dashed-eip>.sslip.io`, where Elastic IP `a.b.c.d` becomes `a-b-c-d.sslip.io` (e.g. `203.0.113.50` → `203-0-113-50.sslip.io`). No DNS record is needed; sslip.io resolves the name to that IP. Let's Encrypt still needs ports 80/443 reachable (`api_cidr` default `0.0.0.0/0`). The EIP is only known after the first `terraform apply`, so set `api_domain` then and apply again (user-data only writes `.env.bootstrap` on first boot, so also edit `API_DOMAIN`, `CORS_ORIGINS`, and `JWT_ISSUER` in `/opt/complibot/.env` by hand).
 
 ## Monthly cost estimate (ap-south-1, always-on)
 
@@ -43,7 +43,7 @@ cp terraform.tfvars.example terraform.tfvars
 # Edit ssh_cidr, api_domain, acme_email, cors_allowed_origins, dev_login_enabled, optional ssh_key_name.
 ```
 
-Set `cors_allowed_origins` to `["https://<api_domain>"]` so API CORS and S3 presigned PUT match the single origin.
+`https://<api_domain>` is always included in API CORS (`CORS_ORIGINS`) and S3 presigned PUT CORS. Use `cors_allowed_origins` only for extra origins (e.g. a Vercel preview).
 
 For a **public demo** where anyone can sign in with any email (passwordless dev login, synthetic data only, mock LLM), set:
 
@@ -104,7 +104,7 @@ Review `.env` (see root `.env.example` **Production (EC2)** section):
 - `DEV_AUTH_SECRET` — generated; must be ≥ 32 characters (the API refuses to start otherwise). It signs
   every JWT, so rotating it logs everyone out.
 - `JWT_ISSUER` / `JWT_AUDIENCE` — generated from `api_domain`.
-- `CORS_ORIGINS` — should include `https://<API_DOMAIN>` (Terraform `cors_allowed_origins`).
+- `CORS_ORIGINS` — `https://<API_DOMAIN>` plus any Terraform `cors_allowed_origins`.
 
 ## 3. Deploy application
 
@@ -173,10 +173,11 @@ On `{$API_DOMAIN}`:
 
 | Path | Backend |
 |------|---------|
-| `/v1/*`, `/health`, `/docs`, `/openapi.json` | `127.0.0.1:8000` (API), `request_body` max 1MB |
-| Everything else | `127.0.0.1:3000` (Next.js) |
+| `/v1`, `/v1/*` (REST + WebSocket `/v1/reviews/{id}/ws`), `/health`, `/docs`, `/docs/*`, `/redoc`, `/openapi.json` | `127.0.0.1:8000` (API), `request_body` max 1MB |
+| Everything else (`/`, app routes, `/_next/*`) | `127.0.0.1:3000` (Next.js) |
 
-Uploads use S3 presigned PUT; large bodies are not proxied through Caddy.
+Uploads use S3 presigned PUT; large bodies are not proxied through Caddy. Only 22/80/443 are open in the
+security group; the API (`:8000`), Next.js (`:3000`), Postgres, and the Caddy admin API bind `127.0.0.1` only.
 
 ## Blockers for production-grade deploy
 
@@ -189,7 +190,8 @@ Uploads use S3 presigned PUT; large bodies are not proxied through Caddy.
 
 ## Local verification (no AWS)
 
-`docker-compose.prod.yml` uses **host networking** so services talk on `127.0.0.1`. For a quick API-only check without TLS:
+`docker-compose.prod.yml` uses **host networking** so services talk on `127.0.0.1`. `API_DOMAIN` is required
+(compose refuses to build `web` without it). Without the `tls` profile (no Caddy):
 
 ```bash
 cp .env.example .env
@@ -212,13 +214,10 @@ curl -kfsS https://localhost/health
 curl -kfsS -o /dev/null -w '%{http_code}\n' https://localhost/
 ```
 
-Verify the web bundle contains the configured API origin (after `web` build):
+Verify the web bundle contains the configured API origin:
 
 ```bash
-docker compose -f docker-compose.prod.yml run --rm --no-deps web \
-  sh -c 'grep -r "https://localhost" .next/static 2>/dev/null | head -1 || grep -r "https://localhost" apps/web/.next/static 2>/dev/null | head -1'
+docker compose -f docker-compose.prod.yml exec web grep -rlF 'https://localhost' apps/web/.next/static
 ```
-
-(Or inspect the built image: `grep` under `/app/apps/web/.next/static` in the `web` container.)
 
 **Bridge networking note:** On some nested/containerized dev VMs, Docker bridge traffic between containers can time out while host-published ports work. Host networking matches the single-EC2 production shape and avoids that class of issue.
