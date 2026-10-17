@@ -42,18 +42,21 @@ class Settings(BaseSettings):
         if self.app_env != "local" and self.dev_auth_secret == DEFAULT_DEV_SECRET:
             raise ValueError("Set DEV_AUTH_SECRET to a long random value before non-local deploy")
 
-        if (
-            self.dev_login_enabled
-            and self.app_env == "demo"
-            and len(self.dev_auth_secret) < MIN_DEV_AUTH_SECRET_LEN
-        ):
+        # The same secret verifies every JWT, so its length matters even with dev login off.
+        if self.app_env != "local" and len(self.dev_auth_secret) < MIN_DEV_AUTH_SECRET_LEN:
             raise ValueError(
                 f"DEV_AUTH_SECRET must be at least {MIN_DEV_AUTH_SECRET_LEN} characters "
-                "for demo when dev login is enabled"
+                "outside local"
             )
 
-        if self.presign_ttl_seconds > 300:
-            raise ValueError("PRESIGN_TTL_SECONDS must not exceed 300 (5 minutes)")
+        if self.app_env != "local" and self.llm_provider.lower() == "openrouter":
+            raise ValueError("LLM_PROVIDER=openrouter is not allowed outside local (D-08)")
+
+        if not 0 < self.presign_ttl_seconds <= 300:
+            raise ValueError("PRESIGN_TTL_SECONDS must be between 1 and 300 (5 minutes)")
+
+        if not 0 < self.ws_max_message_bytes <= 65536:
+            raise ValueError("WS_MAX_MESSAGE_BYTES must be between 1 and 65536")
 
         return self
 

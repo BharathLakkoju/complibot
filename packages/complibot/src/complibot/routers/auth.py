@@ -1,5 +1,4 @@
 import time
-from collections import defaultdict
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
@@ -9,7 +8,7 @@ from complibot.auth.jwt import AuthUser, create_dev_token, current_user
 from complibot.config import get_settings
 from complibot.db.models import Tenant, User
 from complibot.db.session import get_db
-from complibot.exceptions import Forbidden
+from complibot.exceptions import Forbidden, TooManyRequests
 from complibot.ids import new_tenant_id, new_user_id
 from complibot.schemas import DevLoginIn, DevLoginOut
 
@@ -17,16 +16,19 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 _LOGIN_WINDOW_SEC = 60
 _LOGIN_MAX_PER_WINDOW = 20
-_login_attempts: dict[str, list[float]] = defaultdict(list)
+_login_attempts: dict[str, list[float]] = {}
 
 
 def _rate_limit_client(ip: str) -> None:
-    now = time.time()
-    window = [t for t in _login_attempts[ip] if now - t < _LOGIN_WINDOW_SEC]
-    _login_attempts[ip] = window
+    now = time.monotonic()
+    for key in [k for k, ts in _login_attempts.items() if now - ts[-1] >= _LOGIN_WINDOW_SEC]:
+        del _login_attempts[key]
+    window = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_WINDOW_SEC]
     if len(window) >= _LOGIN_MAX_PER_WINDOW:
-        raise Forbidden("Too many login attempts; try again later")
-    _login_attempts[ip].append(now)
+        _login_attempts[ip] = window
+        raise TooManyRequests("Too many login attempts; try again later")
+    window.append(now)
+    _login_attempts[ip] = window
 
 
 @router.post("/dev-login", response_model=DevLoginOut)
