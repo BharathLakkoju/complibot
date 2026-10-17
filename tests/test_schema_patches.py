@@ -7,6 +7,8 @@ from sqlalchemy import text
 
 @pytest.mark.asyncio
 async def test_password_hash_column_added_to_legacy_users_table() -> None:
+    if engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL-only migration patch test")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(
