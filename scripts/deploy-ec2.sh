@@ -54,10 +54,11 @@ fi
 
 if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
   api_domain="$(grep -E '^API_DOMAIN=' .env | tail -n1 | cut -d= -f2-)"
-  echo "Checking https://$api_domain/health (Let's Encrypt can take a minute on first boot)..."
+  echo "Checking https://$api_domain/ and /health (Let's Encrypt can take a minute on first boot)..."
   for _ in $(seq 1 30); do
-    if curl -fsS "https://$api_domain/health" >/dev/null 2>&1; then
-      echo "HTTPS OK. Deploy complete."
+    if curl -fsS "https://$api_domain/health" >/dev/null 2>&1 \
+      && curl -fsS -o /dev/null "https://$api_domain/"; then
+      echo "HTTPS OK (web + API). Deploy complete."
       exit 0
     fi
     sleep 4

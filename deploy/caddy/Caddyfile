@@ -3,8 +3,14 @@
 }
 
 {$API_DOMAIN} {
-	request_body {
-		max_size 1MB
+	@api path /v1/* /health /docs /openapi.json
+	handle @api {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy 127.0.0.1:8000
 	}
-	reverse_proxy 127.0.0.1:8000
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
 }

@@ -28,9 +28,10 @@ resource "aws_instance" "app" {
     s3_bucket      = aws_s3_bucket.documents.bucket
     backup_bucket  = aws_s3_bucket.backups.bucket
     sqs_queue_url  = aws_sqs_queue.review.url
-    api_domain     = var.api_domain
-    acme_email     = var.acme_email
-    cors_origins   = join(",", var.cors_allowed_origins)
+    api_domain          = var.api_domain
+    acme_email          = var.acme_email
+    cors_origins        = join(",", var.cors_allowed_origins)
+    dev_login_enabled   = var.dev_login_enabled
   })
 
   tags = {

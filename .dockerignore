@@ -1,6 +1,7 @@
 .venv
 node_modules
-apps/web
+apps/web/node_modules
+apps/web/.next
 .git
 .data
 *.db

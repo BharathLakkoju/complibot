@@ -4,7 +4,7 @@ output "public_ip" {
 }
 
 output "api_base_url" {
-  description = "HTTPS API base URL for Vercel NEXT_PUBLIC_API_URL (set API_DOMAIN on the host)."
+  description = "Public HTTPS origin (UI + API); matches NEXT_PUBLIC_API_URL baked into the web image."
   value       = "https://${var.api_domain}"
 }
 
