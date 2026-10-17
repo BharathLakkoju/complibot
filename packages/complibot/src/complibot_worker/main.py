@@ -8,9 +8,9 @@ import aioboto3
 from complibot.config import get_settings
 from complibot.db.models import Review
 from complibot.db.session import SessionLocal
+from complibot.services.review_status import set_review_status
 from sqlalchemy import select
 
-from complibot.services.review_status import set_review_status
 from complibot_worker.pipeline.mock_review import run_mock_review
 
 logging.basicConfig(level=logging.INFO)

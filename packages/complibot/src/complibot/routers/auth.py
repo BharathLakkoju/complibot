@@ -99,7 +99,9 @@ async def login(
     email = body.email.strip().lower()
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
-    if user is None or not user.password_hash or not verify_password(body.password, user.password_hash):
+    if user is None or not user.password_hash:
+        raise Unauthorized()
+    if not verify_password(body.password, user.password_hash):
         raise Unauthorized()
     return _issue_token(user)
 
