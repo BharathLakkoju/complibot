@@ -8,9 +8,12 @@ ssh_cidr = "203.0.113.10/32"
 # Optional: EC2 key pair name in ap-south-1 for SSH.
 # ssh_key_name = "complibot-demo"
 
-# DNS name for HTTPS (A record → terraform output public_ip).
+# DNS name for HTTPS (A record → terraform output public_ip). Serves API + Next.js on one origin.
 api_domain = "api.demo.example.com"
 acme_email = "you@example.com"
 
-# Match your Vercel deployment origin for S3 presigned PUT.
-cors_allowed_origins = ["https://your-vercel-app.vercel.app"]
+# https://<api_domain> is always allowed (UI is served from the same host). Add extra origins only if needed.
+# cors_allowed_origins = ["https://your-vercel-app.vercel.app"]
+
+# Public demo: allow passwordless dev login (any email). Default false for locked-down hosts.
+# dev_login_enabled = true

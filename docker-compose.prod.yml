@@ -1,5 +1,5 @@
 # Production-style stack for a single host (EC2 demo). Copy .env.example → .env and fill prod values.
-# API listens on localhost only; Caddy terminates TLS on :443 for browsers (Vercel → HTTPS).
+# API + Next.js listen on localhost only; Caddy terminates TLS on :443 (single public origin).
 services:
   postgres:
     image: pgvector/pgvector:pg16
@@ -76,6 +76,24 @@ services:
     healthcheck:
       disable: true
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: https://${API_DOMAIN:?API_DOMAIN must be set for web build}
+    network_mode: host
+    environment:
+      HOSTNAME: 127.0.0.1
+      PORT: "3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
   caddy:
     profiles: ["tls"]
     image: caddy:2-alpine
@@ -90,6 +108,8 @@ services:
       - caddy_config:/config
     depends_on:
       api:
+        condition: service_healthy
+      web:
         condition: service_healthy
 
 volumes:

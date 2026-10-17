@@ -46,8 +46,8 @@ variable "api_cidr" {
 
 variable "cors_allowed_origins" {
   type        = list(string)
-  description = "Vercel (or other) origins allowed for S3 presigned PUT CORS."
-  default     = ["https://your-vercel-app.vercel.app"]
+  description = "Extra browser origins for API CORS and S3 presigned PUT CORS; https://<api_domain> is always included."
+  default     = []
 }
 
 variable "ssh_key_name" {
@@ -70,4 +70,10 @@ variable "api_domain" {
 variable "acme_email" {
   type        = string
   description = "Email for Let's Encrypt expiry notices (used by Caddy on the host)."
+}
+
+variable "dev_login_enabled" {
+  type        = bool
+  description = "When true, passwordless dev login is enabled on the public demo (synthetic data + mock LLM only)."
+  default     = false
 }

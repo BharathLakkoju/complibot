@@ -1,6 +1,16 @@
 # Single EC2 demo deploy (< $10/month)
 
-This path runs **API + worker + Postgres (pgvector)** on one **ARM** EC2 instance with real **S3** and **SQS**. The Next.js UI stays on **Vercel**. **Caddy** terminates **HTTPS** on :443 (Let's Encrypt) so the browser can call the API and WebSocket from your HTTPS Vercel app. No ALB, RDS, ECS, Cognito, or Bedrock in this budget profile.
+This path runs **API + worker + Next.js + Postgres (pgvector)** on one **ARM** EC2 instance with real **S3** and **SQS**. **Caddy** terminates **HTTPS** on :443 and routes API paths to the API container and everything else to Next.js — **one public origin** (no Vercel, no cross-origin CORS for the UI). No ALB, RDS, ECS, Cognito, or Bedrock in this budget profile.
+
+## Public URL
+
+After deploy, open **`https://<API_DOMAIN>/`** (same value as Terraform `api_domain` and `API_DOMAIN` in `.env`). REST and WebSocket use that origin (`NEXT_PUBLIC_API_URL` is set at **Docker image build** time to `https://<API_DOMAIN>`).
+
+**Changing `API_DOMAIN`** requires rebuilding the `web` service (`docker compose ... build web` or re-run `./scripts/deploy-ec2.sh`) so the browser bundle picks up the new API base URL.
+
+### Hostname without a custom domain (sslip.io)
+
+If you do not have a DNS name yet, use **[sslip.io](https://sslip.io/)**: set `api_domain` / `API_DOMAIN` to `<dashed-eip>.sslip.io`, where Elastic IP `a.b.c.d` becomes `a-b-c-d.sslip.io` (e.g. `203.0.113.50` → `203-0-113-50.sslip.io`). No DNS record is needed; sslip.io resolves the name to that IP. Let's Encrypt still needs ports 80/443 reachable (`api_cidr` default `0.0.0.0/0`). The EIP is only known after the first `terraform apply`, so set `api_domain` then and apply again (user-data only writes `.env.bootstrap` on first boot, so also edit `API_DOMAIN`, `CORS_ORIGINS`, and `JWT_ISSUER` in `/opt/complibot/.env` by hand).
 
 ## Monthly cost estimate (ap-south-1, always-on)
 
@@ -22,17 +32,28 @@ Set an AWS Budget at **$10** with alerts at 80% and 100%.
 
 1. AWS CLI configured for the owner account (apply is **not** run in CI for this demo).
 2. Terraform ≥ 1.6.
-3. A DNS name for the API (e.g. `api.demo.example.com`) with an **A record** to the Elastic IP after `terraform apply`.
+3. A DNS name for the site (custom domain or `x-x-x-x.sslip.io`) with traffic to the Elastic IP after `terraform apply`.
 4. Docker on your laptop (to verify `docker build` before push).
-5. Vercel `NEXT_PUBLIC_API_URL` → `https://<api_domain>` (from Terraform output `api_base_url`).
 
 ## 1. Provision AWS (Terraform)
 
 ```bash
 cd infra/terraform/envs/demo
 cp terraform.tfvars.example terraform.tfvars
-# Edit ssh_cidr, api_domain, acme_email, cors_allowed_origins, optional ssh_key_name.
+# Edit ssh_cidr, api_domain, acme_email, cors_allowed_origins, dev_login_enabled, optional ssh_key_name.
+```
 
+`https://<api_domain>` is always included in API CORS (`CORS_ORIGINS`) and S3 presigned PUT CORS. Use `cors_allowed_origins` only for extra origins (e.g. a Vercel preview).
+
+For a **public demo** where anyone can sign in with any email (passwordless dev login, synthetic data only, mock LLM), set:
+
+```hcl
+dev_login_enabled = true
+```
+
+Default is `false` (nobody can sign in until you enable dev login or add Cognito elsewhere).
+
+```bash
 terraform init
 terraform plan
 terraform apply
@@ -40,7 +61,7 @@ terraform apply
 
 Note outputs: `public_ip`, `api_base_url`, `s3_bucket`, `backup_s3_bucket`, `sqs_queue_url`.
 
-Point **`api_domain`** DNS at `public_ip` before starting Caddy on the host.
+Point **`api_domain`** at `public_ip` (A record or sslip.io) before starting Caddy on the host.
 
 **Do not commit `terraform.tfvars`** if it contains sensitive CIDRs.
 
@@ -79,14 +100,11 @@ Review `.env` (see root `.env.example` **Production (EC2)** section):
 - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — **leave empty** on EC2 (instance role).
 - `INLINE_WORKER=false`
 - `APP_ENV=demo`
-- `DEV_LOGIN_ENABLED` — bootstrap sets `false`, which means **nobody can sign in** (there is no Cognito in
-  this profile). Set `true` to demo the UI. Dev login is passwordless: anyone who can reach the API can
-  sign in as any email, including an existing user's, so use only synthetic data and turn it off (or
-  stop the instance) between demos. Attempts are rate-limited to 20/min per client IP.
+- `DEV_LOGIN_ENABLED` — from Terraform `dev_login_enabled` in `.env.bootstrap`. When `false`, **nobody can sign in** (no Cognito in this profile). When `true`, dev login is passwordless: anyone who can reach the site can sign in as any email — use only synthetic data and turn it off (or stop the instance) between demos. Attempts are rate-limited to 20/min per client IP.
 - `DEV_AUTH_SECRET` — generated; must be ≥ 32 characters (the API refuses to start otherwise). It signs
   every JWT, so rotating it logs everyone out.
 - `JWT_ISSUER` / `JWT_AUDIENCE` — generated from `api_domain`.
-- `CORS_ORIGINS` — your Vercel URL (must match Terraform `cors_allowed_origins` for presigned PUT).
+- `CORS_ORIGINS` — `https://<API_DOMAIN>` plus any Terraform `cors_allowed_origins`.
 
 ## 3. Deploy application
 
@@ -96,10 +114,17 @@ On the EC2 host (`deploy-ec2.sh` enables the `tls` compose profile for Caddy):
 ./scripts/deploy-ec2.sh
 ```
 
-Updates later:
+The script builds **api**, **worker**, and **web** (web embeds `NEXT_PUBLIC_API_URL=https://<API_DOMAIN>`). Updates later:
 
 ```bash
 cd /opt/complibot && ./scripts/deploy-ec2.sh
+```
+
+If you change only `API_DOMAIN`, rebuild web explicitly:
+
+```bash
+docker compose --profile tls -f docker-compose.prod.yml build web
+docker compose --profile tls -f docker-compose.prod.yml up -d
 ```
 
 ## 4. Database backups (cron)
@@ -126,9 +151,12 @@ From your laptop (after DNS propagates and Caddy has issued a certificate):
 
 ```bash
 curl -fsS "$(terraform output -raw api_base_url)/health"
+curl -fsS -o /dev/null -w '%{http_code}\n' "$(terraform output -raw api_base_url)/"
 ```
 
-Use [16-smoke-tests-and-rollback.md](16-smoke-tests-and-rollback.md) where applicable. Enable `DEV_LOGIN_ENABLED=true` only for controlled demo auth (prefer Cognito for anything beyond a lab).
+Expect `ok` JSON from `/health` and `200` from `/`.
+
+Use [16-smoke-tests-and-rollback.md](16-smoke-tests-and-rollback.md) where applicable.
 
 ## 6. Tear down
 
@@ -139,27 +167,57 @@ terraform destroy
 
 Empty the S3 buckets first if `terraform destroy` fails on bucket versioning.
 
+## Caddy routing (compose `tls` profile)
+
+On `{$API_DOMAIN}`:
+
+| Path | Backend |
+|------|---------|
+| `/v1`, `/v1/*` (REST + WebSocket `/v1/reviews/{id}/ws`), `/health`, `/docs`, `/docs/*`, `/redoc`, `/openapi.json` | `127.0.0.1:8000` (API), `request_body` max 1MB |
+| Everything else (`/`, app routes, `/_next/*`) | `127.0.0.1:3000` (Next.js) |
+
+Uploads use S3 presigned PUT; large bodies are not proxied through Caddy. Only 22/80/443 are open in the
+security group; the API (`:8000`), Next.js (`:3000`), Postgres, and the Caddy admin API bind `127.0.0.1` only.
+
 ## Blockers for production-grade deploy
 
 - **Bedrock / real LLM** — not in this stack; worker uses `LLM_PROVIDER=mock` until a separate Bedrock-enabled worker profile is added.
-- **Cognito** — API uses dev JWT when `DEV_LOGIN_ENABLED=true`; default demo bootstrap keeps it **off**.
+- **Cognito** — API uses dev JWT when `DEV_LOGIN_ENABLED=true`; default Terraform keeps it **off**.
 - **SSH** — `ssh_cidr` must be a narrow CIDR (Terraform rejects `0.0.0.0/0`).
 - **`api_cidr`** — keep `0.0.0.0/0`; Let's Encrypt validates from undisclosed IPs, so narrowing 80/443
   breaks certificate issuance and renewal.
 - **Remote Terraform state** — optional S3 backend is commented in `versions.tf`; enable for team use.
 
-## Local verification (no AWS, no TLS)
+## Local verification (no AWS)
 
-`docker-compose.prod.yml` uses **host networking** so API/worker talk to Postgres on `127.0.0.1:5432`. Skip the `tls` profile locally (no Caddy); API is on `127.0.0.1:8000` only.
+`docker-compose.prod.yml` uses **host networking** so services talk on `127.0.0.1`. `API_DOMAIN` is required
+(compose refuses to build `web` without it). Without the `tls` profile (no Caddy):
 
 ```bash
 cp .env.example .env
 export POSTGRES_PASSWORD='choose-a-strong-local-password'
 grep -q '^POSTGRES_PASSWORD=' .env && sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env \
   || echo "POSTGRES_PASSWORD=${POSTGRES_PASSWORD}" >> .env
+echo "API_DOMAIN=localhost" >> .env
+echo "ACME_EMAIL=local@example.com" >> .env
 docker compose -f docker-compose.prod.yml config
 docker compose -f docker-compose.prod.yml up -d --build
 curl -fsS http://127.0.0.1:8000/health
+curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/
+```
+
+With Caddy (`tls` profile), Caddy uses an internal certificate for `localhost`:
+
+```bash
+docker compose --profile tls -f docker-compose.prod.yml up -d --build
+curl -kfsS https://localhost/health
+curl -kfsS -o /dev/null -w '%{http_code}\n' https://localhost/
+```
+
+Verify the web bundle contains the configured API origin:
+
+```bash
+docker compose -f docker-compose.prod.yml exec web grep -rlF 'https://localhost' apps/web/.next/static
 ```
 
 **Bridge networking note:** On some nested/containerized dev VMs, Docker bridge traffic between containers can time out while host-published ports work. Host networking matches the single-EC2 production shape and avoids that class of issue.

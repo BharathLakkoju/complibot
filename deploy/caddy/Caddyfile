@@ -3,8 +3,15 @@
 }
 
 {$API_DOMAIN} {
-	request_body {
-		max_size 1MB
+	# Every FastAPI path (REST, WS upgrade, docs). Anything else is Next.js.
+	@api path /v1 /v1/* /health /docs /docs/* /redoc /openapi.json
+	handle @api {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy 127.0.0.1:8000
 	}
-	reverse_proxy 127.0.0.1:8000
+	handle {
+		reverse_proxy 127.0.0.1:3000
+	}
 }

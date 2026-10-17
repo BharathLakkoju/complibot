@@ -1,0 +1,9 @@
+# BuildKit uses this instead of the root .dockerignore (which excludes apps/web for the API image).
+*
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!apps/web
+apps/web/node_modules
+apps/web/.next
+apps/web/*.tsbuildinfo
+apps/web/.env*
