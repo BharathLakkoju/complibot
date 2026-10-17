@@ -25,6 +25,8 @@ jobs:
       - run: uv run pytest -q
         env:
           PYTHONPATH: packages/complibot/src
+          DATABASE_URL: sqlite+aiosqlite:///./.data/complibot.db
+          INLINE_WORKER: "true"
 
   packs:
     runs-on: ubuntu-latest
