@@ -24,18 +24,17 @@ read_env_var() {
 
 cd "$REPO_DIR"
 
+# No fallback to S3_BUCKET: dumps hold every tenant's data and must not land in the documents bucket.
 S3_BUCKET="$(read_env_var BACKUP_S3_BUCKET)"
-if [[ -z "$S3_BUCKET" ]]; then
-  S3_BUCKET="$(read_env_var S3_BUCKET)"
-fi
 AWS_REGION="$(read_env_var AWS_REGION ap-south-1)"
 PREFIX="$(read_env_var BACKUP_S3_PREFIX db)"
 
 if [[ -z "$S3_BUCKET" ]]; then
-  echo "BACKUP_S3_BUCKET (or S3_BUCKET) is not set in $ENV_FILE" >&2
+  echo "BACKUP_S3_BUCKET is not set in $ENV_FILE" >&2
   exit 1
 fi
 
+umask 077
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 TMP="/tmp/complibot-pg-${STAMP}.sql.gz"
 trap 'rm -f "$TMP"' EXIT

@@ -32,19 +32,38 @@ docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" up -d
 if compgen -G "database/alembic/versions/*.py" > /dev/null; then
   echo "Applying database migrations..."
   docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" exec -T api \
-    uv run alembic -c apps/api/alembic.ini upgrade head
+    alembic -c apps/api/alembic.ini upgrade head
 fi
 
 echo "Waiting for API health..."
+healthy=0
 for _ in $(seq 1 30); do
   if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
     curl -fsS http://127.0.0.1:8000/health
     echo
-    echo "Deploy complete."
-    exit 0
+    healthy=1
+    break
   fi
   sleep 2
 done
 
-echo "API did not become healthy in time. Check: docker compose -f $COMPOSE_FILE logs api" >&2
-exit 1
+if [[ "$healthy" != 1 ]]; then
+  echo "API did not become healthy in time. Check: docker compose -f $COMPOSE_FILE logs api" >&2
+  exit 1
+fi
+
+if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
+  api_domain="$(grep -E '^API_DOMAIN=' .env | tail -n1 | cut -d= -f2-)"
+  echo "Checking https://$api_domain/health (Let's Encrypt can take a minute on first boot)..."
+  for _ in $(seq 1 30); do
+    if curl -fsS "https://$api_domain/health" >/dev/null 2>&1; then
+      echo "HTTPS OK. Deploy complete."
+      exit 0
+    fi
+    sleep 4
+  done
+  echo "HTTPS check failed. Check DNS A record and: docker compose -f $COMPOSE_FILE logs caddy" >&2
+  exit 1
+fi
+
+echo "Deploy complete."

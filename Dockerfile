@@ -14,6 +14,7 @@ COPY packages/ packages/
 COPY apps/ apps/
 COPY ai/frameworks/ ai/frameworks/
 COPY ai/rules/ ai/rules/
+COPY database/ database/
 
 RUN uv sync --frozen --no-dev
 

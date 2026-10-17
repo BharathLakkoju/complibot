@@ -23,7 +23,20 @@ services:
       context: .
       dockerfile: Dockerfile
     network_mode: host
-    command: ["uvicorn", "apps.api.main:app", "--host", "127.0.0.1", "--port", "8000"]
+    # Only Caddy on 127.0.0.1 may set X-Forwarded-For (the dev-login rate limit keys on client IP).
+    # --ws-max-size enforces the 64 KB WS message limit before a frame is buffered.
+    command:
+      - uvicorn
+      - apps.api.main:app
+      - --host
+      - "127.0.0.1"
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "127.0.0.1"
+      - --ws-max-size
+      - "65536"
     env_file:
       - .env
     environment:
