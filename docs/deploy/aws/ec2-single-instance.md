@@ -57,21 +57,35 @@ On the instance:
 ```bash
 sudo chown -R ec2-user:ec2-user /opt/complibot
 cd /opt/complibot
-cp .env.bootstrap .env   # from user-data; edit secrets
+cp .env.bootstrap .env   # from user-data (mode 600); secrets are pre-generated
 ```
 
-Merge production values into `.env` (see root `.env.example` **Production (EC2)** section):
+User-data installs Docker, the Compose v2 plugin (pinned GitHub release; Amazon Linux 2023 has no
+`docker-compose-plugin` package), `cronie`, and a 2 GB swap file (`t4g.micro` has 1 GB RAM). It writes
+`.env.bootstrap` with every Terraform-derived value plus a random `POSTGRES_PASSWORD` and
+`DEV_AUTH_SECRET`. Check `cloud-init-output.log` if anything is missing:
 
-- `POSTGRES_PASSWORD` — strong password (matches compose interpolation).
+```bash
+sudo tail -n 50 /var/log/cloud-init-output.log
+docker compose version
+```
+
+Review `.env` (see root `.env.example` **Production (EC2)** section):
+
+- `POSTGRES_PASSWORD` — generated; if you change it use URL-safe characters (it is embedded in `DATABASE_URL`).
 - `API_DOMAIN` / `ACME_EMAIL` — same as Terraform `api_domain` / `acme_email`.
 - `S3_BUCKET`, `BACKUP_S3_BUCKET`, `SQS_QUEUE_URL`, `AWS_REGION` — from Terraform outputs.
 - `AWS_ENDPOINT_URL` — empty (real AWS).
 - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — **leave empty** on EC2 (instance role).
 - `INLINE_WORKER=false`
 - `APP_ENV=demo`
-- `DEV_LOGIN_ENABLED=false` unless you explicitly want open dev-login (not recommended on the public internet).
-- `DEV_AUTH_SECRET` — at least 32 random characters if dev-login is enabled.
-- `JWT_ISSUER` / `JWT_AUDIENCE` — demo values documented in `.env.example`.
+- `DEV_LOGIN_ENABLED` — bootstrap sets `false`, which means **nobody can sign in** (there is no Cognito in
+  this profile). Set `true` to demo the UI. Dev login is passwordless: anyone who can reach the API can
+  sign in as any email, including an existing user's, so use only synthetic data and turn it off (or
+  stop the instance) between demos. Attempts are rate-limited to 20/min per client IP.
+- `DEV_AUTH_SECRET` — generated; must be ≥ 32 characters (the API refuses to start otherwise). It signs
+  every JWT, so rotating it logs everyone out.
+- `JWT_ISSUER` / `JWT_AUDIENCE` — generated from `api_domain`.
 - `CORS_ORIGINS` — your Vercel URL (must match Terraform `cors_allowed_origins` for presigned PUT).
 
 ## 3. Deploy application
@@ -89,6 +103,10 @@ cd /opt/complibot && ./scripts/deploy-ec2.sh
 ```
 
 ## 4. Database backups (cron)
+
+`cronie` is installed and `crond` enabled by user-data. The instance role can put and get objects under
+`db/` in the backup bucket but cannot delete them; old dumps expire through the bucket lifecycle (90 days, noncurrent
+versions after 30).
 
 ```bash
 sudo crontab -u ec2-user -e
@@ -125,7 +143,9 @@ Empty the S3 buckets first if `terraform destroy` fails on bucket versioning.
 
 - **Bedrock / real LLM** — not in this stack; worker uses `LLM_PROVIDER=mock` until a separate Bedrock-enabled worker profile is added.
 - **Cognito** — API uses dev JWT when `DEV_LOGIN_ENABLED=true`; default demo bootstrap keeps it **off**.
-- **SSH** — restrict `ssh_cidr` in tfvars before apply.
+- **SSH** — `ssh_cidr` must be a narrow CIDR (Terraform rejects `0.0.0.0/0`).
+- **`api_cidr`** — keep `0.0.0.0/0`; Let's Encrypt validates from undisclosed IPs, so narrowing 80/443
+  breaks certificate issuance and renewal.
 - **Remote Terraform state** — optional S3 backend is commented in `versions.tf`; enable for team use.
 
 ## Local verification (no AWS, no TLS)
