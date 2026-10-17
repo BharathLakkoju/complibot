@@ -10,7 +10,7 @@ After deploy, open **`https://<API_DOMAIN>/`** (same value as Terraform `api_dom
 
 ### Hostname without a custom domain (sslip.io)
 
-If you do not have a DNS name yet, use **[sslip.io](https://sslip.io/)**: set `api_domain` / `API_DOMAIN` to `<dashed-eip>.sslip.io`, where Elastic IP `a.b.c.d` becomes `a-b-c-d.sslip.io` (e.g. `203.0.113.50` → `203-0-113-50.sslip.io`). No DNS record is needed; sslip.io resolves the name to that IP. Let's Encrypt still needs ports 80/443 reachable (`api_cidr` default `0.0.0.0/0`). The EIP is only known after the first `terraform apply`, so set `api_domain` then and apply again (user-data only writes `.env.bootstrap` on first boot, so also edit `API_DOMAIN`, `CORS_ORIGINS`, and `JWT_ISSUER` in `/opt/complibot/.env` by hand).
+If you do not have a DNS name yet, use **[sslip.io](https://sslip.io/)**: set `api_domain` / `API_DOMAIN` to `<dashed-eip>.sslip.io`, where Elastic IP `a.b.c.d` becomes `a-b-c-d.sslip.io` (e.g. `203.0.113.50` → `203-0-113-50.sslip.io`). No DNS record is needed; sslip.io resolves the name to that IP. Let's Encrypt still needs ports 80/443 reachable (`api_cidr` default `0.0.0.0/0`). The EIP is only known after the first `terraform apply`, so set `api_domain` then and apply again. Cloud-init runs user-data once per instance, so the second apply does not rewrite `.env`: edit `API_DOMAIN`, `CORS_ORIGINS`, and `JWT_ISSUER` in `/opt/complibot/.env` by hand, then run `./scripts/deploy-ec2.sh`.
 
 ## Monthly cost estimate (ap-south-1, always-on)
 
@@ -61,7 +61,8 @@ terraform apply
 
 Note outputs: `public_ip`, `api_base_url`, `s3_bucket`, `backup_s3_bucket`, `sqs_queue_url`.
 
-Point **`api_domain`** at `public_ip` (A record or sslip.io) before starting Caddy on the host.
+Point **`api_domain`** at `public_ip` (A record or sslip.io). Caddy starts on first boot and retries
+certificate issuance until the name resolves to the instance.
 
 **Do not commit `terraform.tfvars`** if it contains sensitive CIDRs.
 
@@ -73,23 +74,24 @@ SSH (if key pair set):
 ssh -i ~/.ssh/your-key.pem ec2-user@$(terraform output -raw public_ip)
 ```
 
-On the instance:
-
-```bash
-sudo chown -R ec2-user:ec2-user /opt/complibot
-cd /opt/complibot
-cp .env.bootstrap .env   # from user-data (mode 600); secrets are pre-generated
-```
-
 User-data installs Docker, the Compose v2 plugin (pinned GitHub release; Amazon Linux 2023 has no
 `docker-compose-plugin` package), `cronie`, and a 2 GB swap file (`t4g.micro` has 1 GB RAM). It writes
 `.env.bootstrap` with every Terraform-derived value plus a random `POSTGRES_PASSWORD` and
-`DEV_AUTH_SECRET`. Check `cloud-init-output.log` if anything is missing:
+`DEV_AUTH_SECRET`, copies it to `.env` (mode 600) if `.env` does not exist yet, and runs
+`./scripts/deploy-ec2.sh` as `ec2-user`. No manual step is needed on first boot.
+
+If the deploy fails (build, `up`, migrations, API health), cloud-init reports an error. If only the final
+HTTPS check times out (DNS or Let's Encrypt still pending), cloud-init succeeds: the stack is up and Caddy
+keeps retrying certificate issuance on its own.
 
 ```bash
+cloud-init status --long
 sudo tail -n 50 /var/log/cloud-init-output.log
-docker compose version
+tail -n 100 /var/log/complibot-deploy.log
 ```
+
+On reboot, Docker starts at boot and the containers come back (`restart: unless-stopped`); `.env` is never
+rewritten.
 
 Review `.env` (see root `.env.example` **Production (EC2)** section):
 
@@ -108,13 +110,9 @@ Review `.env` (see root `.env.example` **Production (EC2)** section):
 
 ## 3. Deploy application
 
-On the EC2 host (`deploy-ec2.sh` enables the `tls` compose profile for Caddy):
-
-```bash
-./scripts/deploy-ec2.sh
-```
-
-The script builds **api**, **worker**, and **web** (web embeds `NEXT_PUBLIC_API_URL=https://<API_DOMAIN>`). Updates later:
+User-data runs the first deploy. `deploy-ec2.sh` enables the `tls` compose profile for Caddy and builds
+**api**, **worker**, and **web** (web embeds `NEXT_PUBLIC_API_URL=https://<API_DOMAIN>`). It exits `75`
+when the stack is healthy but `https://<API_DOMAIN>` is not reachable yet. Updates later:
 
 ```bash
 cd /opt/complibot && ./scripts/deploy-ec2.sh
