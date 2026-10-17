@@ -14,7 +14,7 @@ from complibot.exceptions import BadRequest, NotFound
 from complibot.ids import new_document_id
 from complibot.schemas import DocumentOut, DocumentPasteIn, DocumentPresignIn, PresignOut
 from complibot.services.aws import ensure_bucket, get_object_bytes, presign_put
-from complibot.services.document_ingest import MAX_BYTES, parse_document
+from complibot.services.document_ingest import MAX_BYTES, normalize_mime, parse_document
 
 router = APIRouter(prefix="/v1", tags=["documents"])
 
@@ -56,12 +56,12 @@ async def presign_upload(
     await require_project_role(project_id, "reviewer", user, db)
     if body.size_bytes <= 0 or body.size_bytes > MAX_BYTES:
         raise BadRequest("File must be between 1 byte and 10 MB.")
+    safe_name = body.filename.replace("/", "_").replace("\\", "_")[:200]
+    mime = normalize_mime(safe_name, body.content_type)
     settings = get_settings()
     await ensure_bucket(settings)
     doc_id = new_document_id()
-    safe_name = body.filename.replace("/", "_").replace("\\", "_")[:200]
     key = f"{user.tenant_id}/{project_id}/{doc_id}/{safe_name}"
-    mime = body.content_type.split(";")[0].strip().lower()
     doc = Document(
         id=doc_id,
         tenant_id=user.tenant_id,
@@ -137,6 +137,10 @@ async def complete_upload(
         raise BadRequest("Document already failed processing; upload again.")
     settings = get_settings()
     raw = await get_object_bytes(settings, doc.s3_key)
+    if len(raw) > MAX_BYTES:
+        doc.status = "failed"
+        await db.commit()
+        raise BadRequest("File exceeds the 10 MB limit.")
     parsed = parse_document(doc.filename, doc.mime_type, raw)
     doc.sha256 = hashlib.sha256(raw).hexdigest()
     doc.normalized_text = parsed.text

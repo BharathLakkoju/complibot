@@ -22,7 +22,6 @@ export function FindingCard({
   onReject,
   lowConfidence,
   canDecide,
-  citationOpened,
 }: {
   finding: Finding;
   selected: boolean;
@@ -32,12 +31,10 @@ export function FindingCard({
   onReject: (reason: string) => void;
   lowConfidence: boolean;
   canDecide: boolean;
-  citationOpened: boolean;
 }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const quote = finding.citations[0]?.quote;
-  const acceptReady = citationOpened && finding.status === "open" && canDecide;
 
   return (
     <article
@@ -91,12 +88,7 @@ export function FindingCard({
             <button
               type="button"
               className="rounded bg-[var(--success)] px-2 py-1 text-xs text-white disabled:opacity-40"
-              disabled={!acceptReady}
-              title={
-                !citationOpened
-                  ? "Open the citation in the document first (Show in document)"
-                  : undefined
-              }
+              disabled={finding.status !== "open"}
               onClick={(e) => {
                 e.stopPropagation();
                 onAccept();
@@ -125,7 +117,7 @@ export function FindingCard({
           onClick={(e) => e.stopPropagation()}
         >
           <label className="text-xs text-[var(--text-secondary)]">
-            Reason for rejection (min {MIN_REJECT_REASON} characters)
+            Reason for rejection (min {MIN_REJECT_REASON} characters, required by API)
           </label>
           <textarea
             className="min-h-[60px] rounded border border-[var(--border)] p-2 text-sm"

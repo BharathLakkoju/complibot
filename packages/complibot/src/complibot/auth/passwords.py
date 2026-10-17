@@ -30,6 +30,8 @@ def verify_password(password: str, stored: str) -> bool:
             return False
         iterations_s, salt, expected_hex = rest.split("$", 2)
         iterations = int(iterations_s)
+        if iterations < _ITERATIONS:
+            return False
         digest = hashlib.pbkdf2_hmac(
             "sha256",
             password.encode("utf-8"),

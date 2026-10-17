@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FindingCard } from "@/components/FindingCard";
 import { useReviewSocket } from "@/hooks/useReviewSocket";
 import { apiFetch } from "@/lib/api";
+import { mergeFindingMaps } from "@/lib/mergeFindings";
 import type { Finding } from "@/lib/types";
 
 export default function ReviewPage() {
@@ -15,7 +16,6 @@ export default function ReviewPage() {
   );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<{ start: number; end: number } | null>(null);
-  const [citationOpened, setCitationOpened] = useState<Record<string, boolean>>({});
   const highlightRef = useRef<HTMLElement>(null);
   const { state, setReviewStatus, submitDecision, clearDecisionError } = useReviewSocket(
     reviewId,
@@ -53,10 +53,10 @@ export default function ReviewPage() {
   }, [token, reviewId, setReviewStatus, state.reviewStatus]);
 
   const findings = useMemo(() => {
-    const merged: Record<string, Finding> = {};
-    for (const f of bootFindings) merged[f.id] = f;
-    for (const f of Object.values(state.findings)) merged[f.id] = f;
-    return Object.values(merged).sort((a, b) => {
+    const bootMap: Record<string, Finding> = {};
+    for (const f of bootFindings) bootMap[f.id] = f;
+    const merged = mergeFindingMaps(bootMap, state.findings);
+    return merged.sort((a, b) => {
       const order = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
       return order[a.severity] - order[b.severity];
     });
@@ -102,16 +102,15 @@ export default function ReviewPage() {
         const c = selected.citations[0];
         if (c) {
           setHighlight({ start: c.charStart, end: c.charEnd });
-          setCitationOpened((m) => ({ ...m, [selected.id]: true }));
         }
       }
-      if ((e.key === "a" || e.key === "A") && canDecide && citationOpened[selected.id]) {
+      if ((e.key === "a" || e.key === "A") && canDecide && selected.status === "open") {
         submitDecision(selected.id, "accept", selected.version);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selected, citationOpened, submitDecision, canDecide]);
+  }, [selected, submitDecision, canDecide]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -177,20 +176,14 @@ export default function ReviewPage() {
                 selected={f.id === (selectedId ?? findings[0]?.id)}
                 lowConfidence={f.confidence.band === "low"}
                 canDecide={canDecide}
-                citationOpened={Boolean(citationOpened[f.id])}
                 onSelect={() => setSelectedId(f.id)}
                 onShowInDoc={() => {
                   const c = f.citations[0];
                   if (c) {
                     setHighlight({ start: c.charStart, end: c.charEnd });
-                    setCitationOpened((m) => ({ ...m, [f.id]: true }));
                   }
                 }}
-                onAccept={() => {
-                  if (citationOpened[f.id]) {
-                    submitDecision(f.id, "accept", f.version);
-                  }
-                }}
+                onAccept={() => submitDecision(f.id, "accept", f.version)}
                 onReject={(reason) => submitDecision(f.id, "reject", f.version, reason)}
               />
             ))}

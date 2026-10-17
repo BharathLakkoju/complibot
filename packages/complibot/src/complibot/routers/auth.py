@@ -78,7 +78,7 @@ async def register(
         raise Forbidden(pwd_err)
     existing = await db.execute(select(User).where(User.email == email))
     if existing.scalar_one_or_none() is not None:
-        raise Conflict("An account with this email already exists")
+        raise Conflict("Registration failed")
     name = (body.name or email.split("@")[0])[:200]
     user = await _provision_user(
         db,

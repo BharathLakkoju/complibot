@@ -21,8 +21,11 @@ async def lifespan(_app: FastAPI):
     if url.startswith("sqlite"):
         Path(".data").mkdir(exist_ok=True)
     if settings.schema_auto_create:
+        from complibot.db.schema_patches import apply_schema_patches
+
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(apply_schema_patches)
     yield
     await engine.dispose()
 

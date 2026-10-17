@@ -10,6 +10,7 @@ from complibot.db.models import Review
 from complibot.db.session import SessionLocal
 from sqlalchemy import select
 
+from complibot.services.review_status import set_review_status
 from complibot_worker.pipeline.mock_review import run_mock_review
 
 logging.basicConfig(level=logging.INFO)
@@ -35,7 +36,13 @@ async def process_message(body: dict[str, Any], *, final_attempt: bool = False) 
         if review.status == "completed":
             logger.info("Review %s already completed; skipping duplicate job", review_id)
             return
-        review.status = "running"
+        await set_review_status(
+            db,
+            tenant_id=tenant_id,
+            review_id=review_id,
+            status="running",
+            progress={"stage": "ingest", "done": 0, "total": 5},
+        )
         await db.commit()
     try:
         async with SessionLocal() as db:
@@ -52,8 +59,22 @@ async def process_message(body: dict[str, Any], *, final_attempt: bool = False) 
                 select(Review).where(Review.id == review_id, Review.tenant_id == tenant_id)
             )
             review = res.scalar_one_or_none()
-            if review is not None and review.status == "running":
-                review.status = "failed" if final_attempt else "queued"
+            if review is not None and review.status in ("running", "queued"):
+                if final_attempt:
+                    await set_review_status(
+                        db,
+                        tenant_id=tenant_id,
+                        review_id=review_id,
+                        status="failed",
+                        progress={"stage": "assess", "done": 0, "total": 5},
+                        failure={
+                            "stage": "assess",
+                            "errorCode": "pipeline_error",
+                            "retryable": False,
+                        },
+                    )
+                else:
+                    review.status = "queued"
                 await db.commit()
         raise
 

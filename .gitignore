@@ -17,3 +17,4 @@ eval/results/*.json
 .terraform/
 *.tfvars
 !*.tfvars.example
+e2e-evidence.txt

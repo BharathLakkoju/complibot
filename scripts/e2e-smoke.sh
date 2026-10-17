@@ -49,7 +49,7 @@ F1=$(echo "$FINDINGS" | python3 -c 'import sys,json; f=json.load(sys.stdin); pri
 echo "first finding: $F1"
 
 echo ""
-echo "=== WebSocket accept + reject (python) ==="
+echo "=== WebSocket accept WITHOUT prior Show-in-document (python) ==="
 python3 <<PY
 import json, time, websocket, subprocess, os
 api = os.environ.get("API", "http://127.0.0.1:8000").replace("http", "ws")
