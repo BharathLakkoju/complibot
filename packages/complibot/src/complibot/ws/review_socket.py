@@ -1,3 +1,4 @@
+import asyncio
 import json
 import uuid
 from datetime import UTC, datetime
@@ -5,15 +6,25 @@ from typing import Any
 
 import jwt
 from complibot.config import get_settings
-from complibot.db.models import ProjectMember, Review, ReviewEvent
+from complibot.db.models import FindingRow, ProjectMember, Review, ReviewDecisionRow, ReviewEvent
 from complibot.db.session import SessionLocal
+from complibot.ids import new_decision_id
+from complibot.schemas import Finding, ReviewDecision
 from complibot.services.events import append_review_event
-from complibot.ws.decisions import decision_validation_error
+from complibot.ws.decisions import EDITABLE_FIELDS, decision_validation_error
 from complibot.ws.hub import review_hub
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 from sqlalchemy import select
 
 router = APIRouter()
+
+HELLO_TIMEOUT_S = 5.0
+PRESENCE_STATES = frozenset({"viewing", "idle"})
+
+
+class BadMessage(Exception):
+    pass
 
 
 def _decode_token(token: str) -> dict[str, Any]:
@@ -31,11 +42,23 @@ def _max_ws_bytes() -> int:
     return get_settings().ws_max_message_bytes
 
 
-async def _receive_text_limited(websocket: WebSocket) -> str:
-    raw = await websocket.receive_text()
-    if len(raw.encode("utf-8")) > _max_ws_bytes():
-        raise ValueError("message_too_large")
-    return raw
+async def _receive_json_limited(websocket: WebSocket) -> dict[str, Any]:
+    message = await websocket.receive()
+    if message["type"] == "websocket.disconnect":
+        raise WebSocketDisconnect(message.get("code", 1000))
+    raw = message.get("text")
+    if raw is None or len(raw.encode("utf-8")) > _max_ws_bytes():
+        raise BadMessage
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise BadMessage from exc
+    if not isinstance(data, dict):
+        raise BadMessage
+    payload = data.get("payload", {})
+    if not isinstance(payload, dict):
+        raise BadMessage
+    return data
 
 
 @router.websocket("/v1/reviews/{review_id}/ws")
@@ -46,21 +69,29 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
     joined = False
     try:
         await websocket.accept()
-        raw = await _receive_text_limited(websocket)
-        hello = json.loads(raw)
+        try:
+            hello = await asyncio.wait_for(_receive_json_limited(websocket), HELLO_TIMEOUT_S)
+        except TimeoutError:
+            await websocket.close(code=4401)
+            return
         if hello.get("type") != "client.hello":
             await websocket.close(code=4400)
             return
         payload = hello.get("payload", hello)
-        token = payload.get("token", "")
-        last_seq = int(payload.get("lastSeq") or 0)
+        token = payload.get("token")
+        last_seq = payload.get("lastSeq") or 0
+        if not isinstance(token, str) or not isinstance(last_seq, int):
+            raise BadMessage
         try:
             claims = _decode_token(token)
         except jwt.PyJWTError:
             await websocket.close(code=4401)
             return
+        if not claims.get("sub") or not claims.get("tenant_id"):
+            await websocket.close(code=4401)
+            return
         user_id = str(claims["sub"])
-        tenant_id = str(claims.get("tenant_id", ""))
+        tenant_id = str(claims["tenant_id"])
         async with SessionLocal() as db:
             review_res = await db.execute(
                 select(Review).where(Review.id == review_id, Review.tenant_id == tenant_id)
@@ -146,10 +177,31 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                 }
             )
         )
+        token_exp = claims.get("exp")
         while True:
-            msg = await _receive_text_limited(websocket)
-            data = json.loads(msg)
+            data = await _receive_json_limited(websocket)
+            if isinstance(token_exp, int | float) and datetime.now(UTC).timestamp() >= token_exp:
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "v": 1,
+                            "type": "error",
+                            "id": f"evt_{uuid.uuid4().hex[:20]}",
+                            "reviewId": review_id,
+                            "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                            "payload": {
+                                "code": "auth_expired",
+                                "message": "Token expired",
+                                "retryable": True,
+                                "fatal": True,
+                            },
+                        }
+                    )
+                )
+                await websocket.close(code=4401)
+                return
             mtype = data.get("type")
+            msg_payload = data.get("payload", {})
             if mtype == "client.ping":
                 await websocket.send_text(
                     json.dumps(
@@ -159,13 +211,19 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                             "id": f"evt_{uuid.uuid4().hex[:20]}",
                             "reviewId": review_id,
                             "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                            "payload": {"nonce": data.get("payload", {}).get("nonce", "")},
+                            "payload": {"nonce": str(msg_payload.get("nonce", ""))[:64]},
                         }
                     )
                 )
             elif mtype == "decision.submit":
-                await _handle_decision(review_id, user_id or "", role, data)
+                await _handle_decision(
+                    websocket, review_id, tenant_id, user_id or "", role, msg_payload
+                )
             elif mtype == "presence.update":
+                state = msg_payload.get("state", "viewing")
+                focus = msg_payload.get("focusFindingId")
+                if state not in PRESENCE_STATES or not (focus is None or isinstance(focus, str)):
+                    raise BadMessage
                 await review_hub.broadcast_ephemeral(
                     review_id,
                     {
@@ -178,8 +236,8 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                             "changed": [
                                 {
                                     "userId": user_id,
-                                    "state": data.get("payload", {}).get("state", "viewing"),
-                                    "focusFindingId": data.get("payload", {}).get("focusFindingId"),
+                                    "state": state,
+                                    "focusFindingId": focus[:64] if focus else None,
                                 }
                             ]
                         },
@@ -187,126 +245,143 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                 )
     except WebSocketDisconnect:
         pass
-    except (json.JSONDecodeError, ValueError):
+    except BadMessage:
         await websocket.close(code=4400)
-    except jwt.PyJWTError:
-        await websocket.close(code=4401)
     finally:
         if joined:
             await review_hub.leave(review_id, connection_id)
 
 
-async def _reject_decision(review_id: str, payload: dict[str, Any], code: str) -> None:
-    await review_hub.broadcast(
-        review_id,
-        {
-            "v": 1,
-            "type": "decision.rejected",
-            "id": f"evt_{uuid.uuid4().hex[:20]}",
-            "reviewId": review_id,
-            "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-            "correlationId": payload.get("clientMsgId"),
-            "payload": {"clientMsgId": payload.get("clientMsgId"), "code": code},
-        },
+async def _reject_decision(
+    websocket: WebSocket,
+    review_id: str,
+    payload: dict[str, Any],
+    code: str,
+    current: Finding | None = None,
+) -> None:
+    body: dict[str, Any] = {"clientMsgId": payload.get("clientMsgId"), "code": code}
+    if current is not None:
+        body["current"] = current.model_dump(by_alias=True, mode="json")
+    await websocket.send_text(
+        json.dumps(
+            {
+                "v": 1,
+                "type": "decision.rejected",
+                "id": f"evt_{uuid.uuid4().hex[:20]}",
+                "reviewId": review_id,
+                "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+                "correlationId": payload.get("clientMsgId"),
+                "payload": body,
+            }
+        )
     )
 
 
-async def _handle_decision(review_id: str, user_id: str, role: str, data: dict[str, Any]) -> None:
-    payload = data.get("payload", {})
+def _apply_decision(finding: Finding, action: str, payload: dict[str, Any]) -> Finding:
+    data = finding.model_dump()
+    if action == "accept":
+        data["status"] = "accepted"
+    elif action == "reject":
+        data["status"] = "rejected"
+    elif action == "reopen":
+        data["status"] = "open"
+    elif action == "escalate":
+        data["status"] = "escalated"
+        data["assignee_id"] = str(payload["assigneeId"])
+    elif action == "edit":
+        data["status"] = "edited"
+        edits = payload["edits"]
+        for key in EDITABLE_FIELDS:
+            if key in edits:
+                data[key] = edits[key]
+    data["version"] = finding.version + 1
+    return Finding.model_validate(data)
+
+
+async def _handle_decision(
+    websocket: WebSocket,
+    review_id: str,
+    tenant_id: str,
+    user_id: str,
+    role: str,
+    payload: dict[str, Any],
+) -> None:
     action = payload.get("action")
     if role == "viewer":
-        await _reject_decision(review_id, payload, "forbidden")
+        await _reject_decision(websocket, review_id, payload, "forbidden")
         return
     if action == "override" and role != "owner":
-        await _reject_decision(review_id, payload, "forbidden")
+        await _reject_decision(websocket, review_id, payload, "forbidden")
+        return
+    finding_id = payload.get("findingId")
+    finding_version = payload.get("findingVersion")
+    if not isinstance(finding_id, str) or not isinstance(finding_version, int):
+        await _reject_decision(websocket, review_id, payload, "invalid")
         return
     async with SessionLocal() as db:
-        from complibot.db.models import FindingRow
-        from complibot.ids import new_decision_id
-        from complibot.schemas import Finding, ReviewDecision
-
-        finding_id = payload.get("findingId")
-        res = await db.execute(select(FindingRow).where(FindingRow.id == finding_id))
+        res = await db.execute(
+            select(FindingRow).where(
+                FindingRow.id == finding_id,
+                FindingRow.review_id == review_id,
+                FindingRow.tenant_id == tenant_id,
+            )
+        )
         row = res.scalar_one_or_none()
         if row is None:
+            await _reject_decision(websocket, review_id, payload, "invalid")
             return
         finding = Finding.model_validate(row.payload)
-        if finding.version != int(payload.get("findingVersion", -1)):
-            await review_hub.broadcast(
-                review_id,
-                {
-                    "v": 1,
-                    "type": "decision.rejected",
-                    "id": f"evt_{uuid.uuid4().hex[:20]}",
-                    "reviewId": review_id,
-                    "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                    "correlationId": payload.get("clientMsgId"),
-                    "payload": {
-                        "clientMsgId": payload.get("clientMsgId"),
-                        "code": "version_conflict",
-                        "current": finding.model_dump(by_alias=True),
-                    },
-                },
-            )
+        if finding.version != finding_version:
+            await _reject_decision(websocket, review_id, payload, "version_conflict", finding)
             return
         invalid = decision_validation_error(action, payload, finding)
         if invalid:
-            await _reject_decision(review_id, payload, invalid)
+            await _reject_decision(websocket, review_id, payload, invalid)
             return
-        before = finding.model_dump()
-        if action == "accept":
-            finding.status = "accepted"
-        elif action == "reject":
-            finding.status = "rejected"
-        elif action == "escalate":
-            finding.status = "escalated"
-            finding.assignee_id = payload.get("assigneeId")
-        elif action == "edit":
-            finding.status = "edited"
-            edits = payload.get("edits") or {}
-            for key in ("title", "severity", "rationale", "remediation"):
-                if key in edits:
-                    setattr(finding, key, edits[key])
-        finding.version += 1
-        row.payload = finding.model_dump(by_alias=True, mode="json")
-        row.version = finding.version
+        effective = payload["overrideAction"] if action == "override" else action
+        try:
+            updated = _apply_decision(finding, effective, payload)
+        except ValidationError:
+            await _reject_decision(websocket, review_id, payload, "invalid")
+            return
+        row.payload = updated.model_dump(by_alias=True, mode="json")
+        row.version = updated.version
         decision = ReviewDecision(
             id=new_decision_id(),
-            tenant_id=finding.tenant_id,
-            finding_id=finding.id,
+            tenant_id=tenant_id,
+            finding_id=updated.id,
             review_id=review_id,
             action=action,
             actor_id=user_id,
             at=datetime.now(UTC),
             reason=payload.get("reason"),
-            before=before,
-            after=finding.model_dump(),
-            finding_version=int(payload.get("findingVersion")),
-            client_msg_id=payload.get("clientMsgId", ""),
+            before=finding.model_dump(mode="json"),
+            after=updated.model_dump(mode="json"),
+            finding_version=finding_version,
+            client_msg_id=str(payload.get("clientMsgId", "")),
         )
-        from complibot.db.models import ReviewDecisionRow
-
+        decision_json = decision.model_dump(by_alias=True, mode="json")
         db.add(
             ReviewDecisionRow(
                 id=decision.id,
-                tenant_id=decision.tenant_id,
+                tenant_id=tenant_id,
                 review_id=review_id,
-                finding_id=finding.id,
-                payload=decision.model_dump(by_alias=True),
+                finding_id=updated.id,
+                payload=decision_json,
             )
         )
         await append_review_event(
             db,
-            tenant_id=finding.tenant_id,
+            tenant_id=tenant_id,
             review_id=review_id,
             event_type="finding.updated",
-            payload={"finding": finding.model_dump(by_alias=True), "decisionId": decision.id},
+            payload={"finding": row.payload, "decisionId": decision.id},
         )
         await append_review_event(
             db,
-            tenant_id=finding.tenant_id,
+            tenant_id=tenant_id,
             review_id=review_id,
             event_type="decision.applied",
-            payload={"decision": decision.model_dump(by_alias=True)},
+            payload={"decision": decision_json},
         )
         await db.commit()

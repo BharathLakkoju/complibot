@@ -1,5 +1,6 @@
 from datetime import UTC, datetime
 
+import pytest
 from complibot.schemas import Confidence, Finding, FindingProvenance
 from complibot.ws.decisions import decision_validation_error
 
@@ -40,4 +41,36 @@ def test_escalate_requires_assignee() -> None:
             f,
         )
         == "invalid"
+    )
+
+
+@pytest.mark.parametrize("action", [None, "", "comment", "delete", "ACCEPT"])
+def test_unknown_actions_rejected(action: str | None) -> None:
+    assert decision_validation_error(action, {"reason": "long enough reason"}, _finding()) == (
+        "invalid"
+    )
+
+
+def test_override_requires_valid_override_action_and_reason() -> None:
+    f = _finding()
+    reason = {"reason": "owner override reason"}
+    assert decision_validation_error("override", reason, f) == "invalid"
+    assert decision_validation_error("override", {**reason, "overrideAction": "reopen"}, f) == (
+        "invalid"
+    )
+    assert decision_validation_error("override", {"overrideAction": "accept"}, f) == "invalid"
+    assert decision_validation_error("override", {**reason, "overrideAction": "accept"}, f) is None
+
+
+def test_edit_validation() -> None:
+    f = _finding()
+    assert decision_validation_error("edit", {}, f) == "invalid"
+    assert decision_validation_error("edit", {"edits": {"status": "accepted"}}, f) == "invalid"
+    assert decision_validation_error("edit", {"edits": {"title": "new"}}, f) is None
+    assert decision_validation_error("edit", {"edits": {"severity": "high"}}, f) == "invalid"
+    assert (
+        decision_validation_error(
+            "edit", {"edits": {"severity": "high"}, "reason": "risk is higher"}, f
+        )
+        is None
     )
