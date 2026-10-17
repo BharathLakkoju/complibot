@@ -62,6 +62,7 @@ async def run_mock_review(
     document = doc_res.scalar_one()
     text = document.normalized_text or ""
 
+    review.status = "running"
     await append_review_event(
         db,
         tenant_id=tenant_id,

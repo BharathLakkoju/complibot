@@ -100,7 +100,7 @@ Review `.env` (see root `.env.example` **Production (EC2)** section):
 - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — **leave empty** on EC2 (instance role).
 - `INLINE_WORKER=false`
 - `APP_ENV=demo`
-- `DEV_LOGIN_ENABLED` — from Terraform `dev_login_enabled` in `.env.bootstrap`. When `false`, **nobody can sign in** (no Cognito in this profile). When `true`, dev login is passwordless: anyone who can reach the site can sign in as any email — use only synthetic data and turn it off (or stop the instance) between demos. Attempts are rate-limited to 20/min per client IP.
+- `DEV_LOGIN_ENABLED` — from Terraform `dev_login_enabled` in `.env.bootstrap`. When `false`, users sign in with **email + password** via `/v1/auth/register` and `/v1/auth/login` (recommended once real accounts are in use). When `true`, passwordless dev login is also available for quick demos — use only synthetic data and set `DEV_LOGIN_ENABLED=false` (or stop the instance) between public demos. Auth attempts are rate-limited to 20/min per client IP.
 - `DEV_AUTH_SECRET` — generated; must be ≥ 32 characters (the API refuses to start otherwise). It signs
   every JWT, so rotating it logs everyone out.
 - `JWT_ISSUER` / `JWT_AUDIENCE` — generated from `api_domain`.

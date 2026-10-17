@@ -8,7 +8,7 @@ from complibot.config import get_settings
 from complibot.db.base import Base
 from complibot.db.session import engine
 from complibot.exceptions import AppError
-from complibot.routers import auth, projects, reviews
+from complibot.routers import auth, documents, projects, reviews
 from complibot.ws.review_socket import router as ws_router
 
 
@@ -52,6 +52,7 @@ async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
 
 
 app.include_router(auth.router)
+app.include_router(documents.router)
 app.include_router(projects.router)
 app.include_router(reviews.router)
 app.include_router(ws_router)

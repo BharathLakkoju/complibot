@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
@@ -9,7 +10,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function start() {
+  async function trySample() {
     setLoading(true);
     setError(null);
     try {
@@ -22,7 +23,7 @@ export default function HomePage() {
         method: "POST",
         token: login.accessToken,
         body: JSON.stringify({
-          name: "Interview demo review",
+          name: "Sample review",
           frameworkCodes: ["GDPR", "SOC2"],
         }),
       });
@@ -41,11 +42,10 @@ export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-8 px-6 py-16">
       <div>
-        <p className="text-sm font-medium text-[var(--accent-text)]">Portfolio MVP</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Compliance Review Copilot</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Compliance Review Copilot</h1>
         <p className="mt-3 text-[var(--text-secondary)]">
           Draft findings with machine-verified citations, decide together in real time, and export an
-          audit-ready report. This environment uses synthetic sample contracts only.
+          audit-ready report. Use synthetic or sample contracts in demo environments.
         </p>
       </div>
       <div
@@ -54,13 +54,27 @@ export default function HomePage() {
       >
         Demo only: use synthetic or public sample contracts. Don&apos;t upload real confidential data.
       </div>
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/login"
+          className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-3 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)]"
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/login?mode=register"
+          className="inline-flex items-center justify-center rounded-md border border-[var(--border-strong)] px-5 py-3 text-sm font-medium"
+        >
+          Create account
+        </Link>
+      </div>
       <button
         type="button"
-        onClick={start}
+        onClick={trySample}
         disabled={loading}
-        className="inline-flex items-center justify-center rounded-md bg-[var(--accent)] px-5 py-3 text-sm font-medium text-[var(--accent-fg)] hover:bg-[var(--accent-hover)] disabled:opacity-60"
+        className="text-left text-sm text-[var(--accent-text)] underline disabled:opacity-60"
       >
-        {loading ? "Starting sample review…" : "Try with a sample contract"}
+        {loading ? "Starting sample review…" : "Try sample without an account (dev login)"}
       </button>
       {error && <p className="text-sm text-[var(--critical)]">{error}</p>}
       <p className="text-xs text-[var(--text-muted)]">

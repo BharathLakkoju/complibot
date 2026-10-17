@@ -143,6 +143,28 @@ class PresignOut(ApiModel):
     s3_key: str
 
 
+class DocumentPresignIn(ApiModel):
+    filename: str
+    content_type: str = Field(alias="contentType")
+    size_bytes: int = Field(alias="sizeBytes")
+
+
+class DocumentPasteIn(ApiModel):
+    title: str
+    text: str
+
+
+class RegisterIn(ApiModel):
+    email: str
+    password: str
+    name: str | None = None
+
+
+class LoginIn(ApiModel):
+    email: str
+    password: str
+
+
 class DevLoginIn(ApiModel):
     email: str = "demo@complibot.local"
     name: str = "Demo Analyst"
