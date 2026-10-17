@@ -17,9 +17,11 @@ logger = logging.getLogger("worker")
 
 VISIBILITY_SECONDS = 120
 HEARTBEAT_INTERVAL_SEC = 40
+# Must match maxReceiveCount on the SQS redrive policy (infra/terraform/envs/demo/sqs.tf).
+MAX_RECEIVES = 3
 
 
-async def process_message(body: dict[str, Any]) -> None:
+async def process_message(body: dict[str, Any], *, final_attempt: bool = False) -> None:
     settings = get_settings()
     review_id = body["reviewId"]
     tenant_id = body["tenantId"]
@@ -46,10 +48,12 @@ async def process_message(body: dict[str, Any]) -> None:
             )
     except Exception:
         async with SessionLocal() as db:
-            res = await db.execute(select(Review).where(Review.id == review_id))
+            res = await db.execute(
+                select(Review).where(Review.id == review_id, Review.tenant_id == tenant_id)
+            )
             review = res.scalar_one_or_none()
             if review is not None and review.status == "running":
-                review.status = "queued"
+                review.status = "failed" if final_attempt else "queued"
                 await db.commit()
         raise
 
@@ -80,7 +84,8 @@ async def _handle_sqs_message(sqs: Any, queue_url: str, msg: dict[str, Any]) -> 
     heartbeat = asyncio.create_task(_visibility_heartbeat(sqs, queue_url, receipt, stop))
     try:
         body = json.loads(msg["Body"])
-        await process_message(body)
+        receives = int(msg.get("Attributes", {}).get("ApproximateReceiveCount", "1"))
+        await process_message(body, final_attempt=receives >= MAX_RECEIVES)
         await sqs.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt)
     except Exception:
         logger.exception("Failed processing SQS message")
@@ -109,6 +114,7 @@ async def poll_loop() -> None:
                     MaxNumberOfMessages=1,
                     WaitTimeSeconds=10,
                     VisibilityTimeout=VISIBILITY_SECONDS,
+                    AttributeNames=["ApproximateReceiveCount"],
                 )
                 for msg in resp.get("Messages", []):
                     await _handle_sqs_message(sqs, settings.sqs_queue_url, msg)

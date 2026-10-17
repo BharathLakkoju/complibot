@@ -1,6 +1,6 @@
 import pytest
 from complibot.config import Settings
-from complibot.exceptions import BadRequest
+from complibot.exceptions import ServiceUnavailable
 from complibot.services.queue import dispatch_review_job
 
 
@@ -21,5 +21,5 @@ async def test_sqs_failure_does_not_inline_when_worker_disabled(
 
     monkeypatch.setattr("complibot.services.queue.enqueue_review_job", fail_enqueue)
 
-    with pytest.raises(BadRequest):
+    with pytest.raises(ServiceUnavailable):
         await dispatch_review_job(settings, {"reviewId": "rev_x", "tenantId": "ten_x"})
