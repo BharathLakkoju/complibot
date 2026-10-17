@@ -1,0 +1,14 @@
+# Demo EC2 stack: accept budget-conscious tradeoffs documented in ec2-single-instance.md
+skip-check:
+  - CKV_AWS_18   # S3 access logging (cost)
+  - CKV_AWS_144  # S3 cross-region replication (not required for demo)
+  - CKV_AWS_145  # SSE-KMS (SSE-S3 is enabled)
+  - CKV_AWS_126  # Public IP required for Elastic IP demo API
+  - CKV_AWS_23   # SG wide egress (standard for package updates)
+  - CKV_AWS_24   # SG 0.0.0.0/0 on API ports (restrict api_cidr in tfvars)
+  - CKV_AWS_8    # SSH open when ssh_cidr is placeholder — tighten in tfvars
+  - CKV_AWS_260  # HTTP :80 for optional reverse proxy; restrict api_cidr in tfvars
+  - CKV_AWS_382  # Egress 0.0.0.0/0 required for package/docker pulls on demo host
+  - CKV2_AWS_62  # S3 event notifications omitted for <$10 demo
+  - CKV_AWS_135  # t4g instances are EBS-optimized by default
+  - CKV_AWS_88   # Elastic IP requires a public association for demo API access

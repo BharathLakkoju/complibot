@@ -1,0 +1,16 @@
+.venv
+node_modules
+apps/web
+.git
+.data
+*.db
+.env
+.env.*
+__pycache__
+.pytest_cache
+.ruff_cache
+.mypy_cache
+eval/results/*.json
+infra
+docs
+.cursor

@@ -13,3 +13,6 @@ eval/results/*.json
 .ruff_cache/
 .mypy_cache/
 *.db
+.terraform/
+*.tfvars
+!*.tfvars.example

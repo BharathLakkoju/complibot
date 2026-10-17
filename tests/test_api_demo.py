@@ -3,7 +3,15 @@ import asyncio
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from complibot.db.base import Base
+from complibot.db.session import engine
 from complibot.main import app
+
+
+@pytest.fixture(autouse=True)
+async def _ensure_schema() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 @pytest.mark.asyncio

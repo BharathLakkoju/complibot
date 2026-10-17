@@ -39,13 +39,12 @@ async def process_message(body: dict) -> None:
 async def poll_loop() -> None:
     settings = get_settings()
     session = aioboto3.Session()
-    client_kw = {
-        "region_name": settings.aws_region,
-        "aws_access_key_id": settings.aws_access_key_id,
-        "aws_secret_access_key": settings.aws_secret_access_key,
-    }
+    client_kw: dict[str, str] = {"region_name": settings.aws_region}
     if settings.aws_endpoint_url:
         client_kw["endpoint_url"] = settings.aws_endpoint_url
+    if settings.aws_access_key_id and settings.aws_secret_access_key:
+        client_kw["aws_access_key_id"] = settings.aws_access_key_id
+        client_kw["aws_secret_access_key"] = settings.aws_secret_access_key
     logger.info("Worker polling %s", settings.sqs_queue_url)
     while True:
         try:

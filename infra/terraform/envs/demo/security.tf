@@ -1,0 +1,35 @@
+resource "aws_security_group" "app" {
+  name        = "${local.name_prefix}-ec2"
+  description = "CompliBot single-EC2 demo"
+
+  ingress {
+    description = "SSH (restrict ssh_cidr before production use)"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.ssh_cidr]
+  }
+
+  ingress {
+    description = "HTTP (optional reverse proxy)"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [var.api_cidr]
+  }
+
+  ingress {
+    description = "FastAPI"
+    from_port   = 8000
+    to_port     = 8000
+    protocol    = "tcp"
+    cidr_blocks = [var.api_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
