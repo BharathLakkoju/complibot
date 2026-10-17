@@ -1,7 +1,6 @@
 """Create S3 bucket and SQS queue in LocalStack."""
 
 import boto3
-
 from complibot.config import get_settings
 
 

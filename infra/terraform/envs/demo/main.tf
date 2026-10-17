@@ -1,23 +1,34 @@
-# Demo environment skeleton — extend per ai/build/skills/deploy-to-aws/SKILL.md
-terraform {
-  required_version = ">= 1.6.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
+provider "aws" {
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      project     = var.project
+      environment = var.environment
+      managed_by  = "terraform"
     }
   }
 }
 
-provider "aws" {
-  region = var.aws_region
+data "aws_caller_identity" "current" {}
+
+data "aws_ami" "al2023_arm" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-kernel-*-arm64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
 }
 
-variable "aws_region" {
-  type    = string
-  default = "us-east-1"
-}
-
-output "status" {
-  value = "Terraform modules not yet applied — local docker-compose stack is the default dev path."
+locals {
+  name_prefix        = "${var.project}-${var.environment}"
+  bucket_name        = "${var.project}-${var.environment}-documents-${data.aws_caller_identity.current.account_id}"
+  backup_bucket_name = "${var.project}-${var.environment}-backups-${data.aws_caller_identity.current.account_id}"
 }

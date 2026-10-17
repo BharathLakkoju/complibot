@@ -24,3 +24,13 @@ class Conflict(AppError):
 class BadRequest(AppError):
     def __init__(self, message: str) -> None:
         super().__init__(message, code="bad_request", status=400)
+
+
+class TooManyRequests(AppError):
+    def __init__(self, message: str = "Too many requests") -> None:
+        super().__init__(message, code="rate_limited", status=429)
+
+
+class ServiceUnavailable(AppError):
+    def __init__(self, message: str = "Service unavailable") -> None:
+        super().__init__(message, code="unavailable", status=503)

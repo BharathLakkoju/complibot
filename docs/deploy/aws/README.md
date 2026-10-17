@@ -7,7 +7,7 @@ This folder is a **click-by-click** runbook for deploying the Compliance Review 
 | **Environment name** | `demo` |
 | **Recommended region** | `us-east-1` (N. Virginia) |
 | **GitHub repo** | `https://github.com/BharathLakkoju/complibot` |
-| **Cost target** | ~$75/month (demo; use budgets + scale-to-zero) |
+| **Cost target** | ~$75/month (full ECS/RDS runbook) **or** [< $10/month single EC2](ec2-single-instance.md) |
 
 ## What you are deploying
 
@@ -47,12 +47,15 @@ This folder is a **click-by-click** runbook for deploying the Compliance Review 
 18. [17-cicd-github-actions.md](17-cicd-github-actions.md)
 19. [18-cost-scale-down.md](18-cost-scale-down.md)
 
-## Repo gaps (read before you deploy)
+## Budget demo path (recommended first)
 
-The application code is deployable as containers, but **you must add or complete** these in the repo before production matches the PRD:
+For a **single EC2** stack under **$10/month** (Postgres on-box, S3 + SQS only), follow **[ec2-single-instance.md](ec2-single-instance.md)**. It uses the root `Dockerfile`, `docker-compose.prod.yml`, and `infra/terraform/envs/demo/`.
 
-- **Dockerfile** at repo root (see [10-ecr-docker.md](10-ecr-docker.md))
-- **Terraform modules** under `infra/terraform/modules/` (today only a stub in `infra/terraform/envs/demo/`)
+## Repo gaps (read before full PRD deploy)
+
+The **ECS + RDS** path still needs:
+
+- **Terraform modules** under `infra/terraform/modules/` (Fargate/ALB/RDS — not the EC2 demo)
 - **Cognito JWT** validation in the API (today: `dev-login` only for local)
 - **Bedrock pipeline** (today: mock worker for demo)
 - **Alembic migrations** under `database/alembic/`

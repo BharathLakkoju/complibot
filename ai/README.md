@@ -39,7 +39,7 @@ flowchart TB
 **Build-time**
 - [build/AGENTS.md](build/AGENTS.md): architecture, commands, conventions, definition of done
 - `.cursor/rules`: [python-fastapi](build/.cursor/rules/python-fastapi.mdc) · [websocket-contract](build/.cursor/rules/websocket-contract.mdc) · [ai-pipeline](build/.cursor/rules/ai-pipeline.mdc) · [aws-iac](build/.cursor/rules/aws-iac.mdc) · [security-and-compliance](build/.cursor/rules/security-and-compliance.mdc) (always on) · [testing](build/.cursor/rules/testing.mdc) · [frontend](build/.cursor/rules/frontend.mdc)
-- Skills: [add-framework-pack](build/skills/add-framework-pack/SKILL.md) · [add-websocket-event](build/skills/add-websocket-event/SKILL.md) · [run-eval-harness](build/skills/run-eval-harness/SKILL.md) · [deploy-to-aws](build/skills/deploy-to-aws/SKILL.md)
+- Skills: [code-review](build/skills/code-review/SKILL.md) · [add-framework-pack](build/skills/add-framework-pack/SKILL.md) · [add-websocket-event](build/skills/add-websocket-event/SKILL.md) · [run-eval-harness](build/skills/run-eval-harness/SKILL.md) · [deploy-to-aws](build/skills/deploy-to-aws/SKILL.md)
 
 ## Design invariants (the interview talking points)
 1. **No evidence, no finding.** Verbatim quotes with char spans are checked by code before anything is published. Failures are retried once, then discarded and counted. Missing provisions are explicit `gap` findings with a search record.

@@ -1,9 +1,8 @@
 import asyncio
 
 import pytest
-from httpx import ASGITransport, AsyncClient
-
 from complibot.main import app
+from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import Any
 
+from complibot.db.base import Base
 from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-from complibot.db.base import Base
 
 
 class Tenant(Base):

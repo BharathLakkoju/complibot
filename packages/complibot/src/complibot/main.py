@@ -16,11 +16,13 @@ from complibot.ws.review_socket import router as ws_router
 async def lifespan(_app: FastAPI):
     from pathlib import Path
 
-    url = get_settings().database_url
+    settings = get_settings()
+    url = settings.database_url
     if url.startswith("sqlite"):
         Path(".data").mkdir(exist_ok=True)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    if settings.schema_auto_create:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     yield
     await engine.dispose()
 
@@ -41,7 +43,11 @@ app.add_middleware(
 async def app_error_handler(_request: Request, exc: AppError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status,
-        content={"type": f"https://complibot.dev/errors/{exc.code}", "title": exc.code, "detail": exc.message},
+        content={
+            "type": f"https://complibot.dev/errors/{exc.code}",
+            "title": exc.code,
+            "detail": exc.message,
+        },
     )
 
 

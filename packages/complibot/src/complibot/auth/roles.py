@@ -1,12 +1,11 @@
-from fastapi import Depends
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from complibot.auth.jwt import AuthUser, current_user
 from complibot.db.models import ProjectMember
 from complibot.db.session import get_db
 from complibot.exceptions import Forbidden, NotFound
 from complibot.schemas import ProjectRole
+from fastapi import Depends
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ProjectAccess:

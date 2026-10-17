@@ -10,15 +10,13 @@ import type { Finding } from "@/lib/types";
 export default function ReviewPage() {
   const params = useParams();
   const reviewId = String(params.reviewId);
-  const [token, setToken] = useState<string | null>(null);
+  const [token] = useState<string | null>(() =>
+    typeof window !== "undefined" ? localStorage.getItem("cc_token") : null,
+  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<{ start: number; end: number } | null>(null);
   const [citationOpened, setCitationOpened] = useState<Record<string, boolean>>({});
   const { state, docText, setDocText, submitDecision } = useReviewSocket(reviewId, token);
-
-  useEffect(() => {
-    setToken(localStorage.getItem("cc_token"));
-  }, []);
 
   const [bootFindings, setBootFindings] = useState<Finding[]>([]);
 

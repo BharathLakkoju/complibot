@@ -1,0 +1,10 @@
+# Demo EC2 stack: budget-driven tradeoffs, documented in docs/deploy/aws/ec2-single-instance.md.
+# Every entry below fails without the skip; do not add skips for checks that already pass.
+skip-check:
+  - CKV_AWS_18   # S3 server access logging: extra bucket + request cost
+  - CKV_AWS_144  # S3 cross-region replication: doubles storage cost
+  - CKV_AWS_145  # SSE-KMS: SSE-S3 (AES256) is enabled; KMS adds per-request cost
+  - CKV2_AWS_62  # S3 event notifications: nothing consumes them in this demo
+  - CKV_AWS_126  # EC2 detailed monitoring: billed per metric; basic 5-min metrics suffice
+  - CKV_AWS_260  # Port 80 open to 0.0.0.0/0: Let's Encrypt HTTP-01 + HTTPS redirect (Caddy)
+  - CKV_AWS_382  # Egress 0.0.0.0/0: dnf, image pulls, ACME and public S3/SQS endpoints (no NAT/VPC endpoints)

@@ -1,0 +1,98 @@
+# Production-style stack for a single host (EC2 demo). Copy .env.example → .env and fill prod values.
+# API listens on localhost only; Caddy terminates TLS on :443 for browsers (Vercel → HTTPS).
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    network_mode: host
+    command: ["postgres", "-c", "listen_addresses=127.0.0.1"]
+    environment:
+      POSTGRES_USER: complibot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: complibot
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U complibot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    # Only Caddy on 127.0.0.1 may set X-Forwarded-For (the dev-login rate limit keys on client IP).
+    # --ws-max-size enforces the 64 KB WS message limit before a frame is buffered.
+    command:
+      - uvicorn
+      - apps.api.main:app
+      - --host
+      - "127.0.0.1"
+      - --port
+      - "8000"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "127.0.0.1"
+      - --ws-max-size
+      - "65536"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@127.0.0.1:5432/complibot?ssl=disable
+      AWS_ENDPOINT_URL: ""
+      INLINE_WORKER: "false"
+      SCHEMA_AUTO_CREATE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    network_mode: host
+    command: ["python", "apps/worker/main.py"]
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@127.0.0.1:5432/complibot?ssl=disable
+      AWS_ENDPOINT_URL: ""
+      INLINE_WORKER: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+
+  caddy:
+    profiles: ["tls"]
+    image: caddy:2-alpine
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-localhost.invalid}
+      ACME_EMAIL: ${ACME_EMAIL:-tls-not-configured@example.com}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
