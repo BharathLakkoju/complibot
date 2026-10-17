@@ -60,3 +60,25 @@ EOF
 fi
 
 chown -R ec2-user:ec2-user /opt/complibot
+
+if [ ! -f /opt/complibot/.env ]; then
+  install -m 0600 -o ec2-user -g ec2-user /opt/complibot/.env.bootstrap /opt/complibot/.env
+fi
+
+touch /var/log/complibot-deploy.log
+chown ec2-user:ec2-user /var/log/complibot-deploy.log
+
+# runuser calls initgroups(), so the docker group added above applies without a re-login.
+deploy_rc=0
+runuser -u ec2-user -- bash -lc 'cd /opt/complibot && exec ./scripts/deploy-ec2.sh' \
+  >>/var/log/complibot-deploy.log 2>&1 || deploy_rc=$?
+case "$deploy_rc" in
+  0) ;;
+  # 75 = stack up, HTTPS not reachable yet; Caddy keeps retrying ACME, so cloud-init should not fail.
+  75) echo "complibot deploy: API healthy, HTTPS not ready yet (see /var/log/complibot-deploy.log)" >&2 ;;
+  *)
+    echo "complibot deploy failed (exit $deploy_rc); last log lines:" >&2
+    tail -n 40 /var/log/complibot-deploy.log >&2 || true
+    exit "$deploy_rc"
+    ;;
+esac

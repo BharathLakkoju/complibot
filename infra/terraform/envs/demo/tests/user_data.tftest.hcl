@@ -29,6 +29,10 @@ run "dev_login_disabled_by_default" {
     error_message = "CORS_ORIGINS must default to the single public origin"
   }
   assert {
+    condition     = strcontains(aws_instance.app.user_data, "\nrunuser -u ec2-user -- bash -lc 'cd /opt/complibot && exec ./scripts/deploy-ec2.sh' \\\n  >>/var/log/complibot-deploy.log 2>&1 || deploy_rc=$?\n")
+    error_message = "user_data must run scripts/deploy-ec2.sh as ec2-user on first boot, logging to /var/log/complibot-deploy.log"
+  }
+  assert {
     condition     = contains(flatten([for r in aws_s3_bucket_cors_configuration.documents.cors_rule : r.allowed_origins]), "https://203-0-113-50.sslip.io")
     error_message = "S3 presigned PUT CORS must allow the single public origin"
   }

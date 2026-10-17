@@ -66,7 +66,9 @@ if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
     sleep 4
   done
   echo "HTTPS check failed. Check DNS A record and: docker compose -f $COMPOSE_FILE logs caddy" >&2
-  exit 1
+  # EX_TEMPFAIL: the stack is up and Caddy keeps retrying ACME. EC2 user-data treats only this
+  # code as non-fatal; 2 would collide with exit codes propagated through `set -e` (e.g. alembic).
+  exit 75
 fi
 
 echo "Deploy complete."
