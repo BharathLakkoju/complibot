@@ -66,7 +66,8 @@ if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
     sleep 4
   done
   echo "HTTPS check failed. Check DNS A record and: docker compose -f $COMPOSE_FILE logs caddy" >&2
-  exit 1
+  # Exit 2 so EC2 user-data can treat LE/DNS lag as non-fatal for cloud-init.
+  exit 2
 fi
 
 echo "Deploy complete."

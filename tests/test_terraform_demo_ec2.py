@@ -51,3 +51,12 @@ def test_dev_login_enabled_renders_into_env_bootstrap(tmp_path: Path, enabled: b
     ]
     assert "API_DOMAIN=203-0-113-50.sslip.io" in lines
     assert "CORS_ORIGINS=https://203-0-113-50.sslip.io" in lines
+
+
+def test_user_data_invokes_deploy_ec2(tmp_path: Path) -> None:
+    rendered = _render(tmp_path, dev_login_enabled=False)
+    assert "scripts/deploy-ec2.sh" in rendered
+    assert "/var/log/complibot-deploy.log" in rendered
+    assert "runuser -u ec2-user" in rendered
+    assert "install -m 0600" in rendered
+    assert "/opt/complibot/.env.bootstrap" in rendered
