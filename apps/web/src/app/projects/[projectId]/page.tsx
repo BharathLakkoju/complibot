@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { apiFetch, getApiUrl } from "@/lib/api";
 
 type DocumentRow = {
@@ -16,12 +18,12 @@ export default function ProjectPage() {
   const params = useParams();
   const projectId = String(params.projectId);
   const router = useRouter();
-  const [token] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("cc_token") : null,
-  );
+  const { token, ready } = useAuthSession(true);
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [documentsError, setDocumentsError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [pasteError, setPasteError] = useState<string | null>(null);
   const [pasteTitle, setPasteTitle] = useState("gdpr-policy");
   const [pasteText, setPasteText] = useState(
     "The controller shall maintain a record of processing activities. Personal data may be transferred to sub-processors without prior notice.",
@@ -29,26 +31,24 @@ export default function ProjectPage() {
   const [uploading, setUploading] = useState(false);
   const [startingReview, setStartingReview] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!token) return;
+    apiFetch<DocumentRow[]>(`/v1/projects/${projectId}/documents`, { token })
+      .then(setDocuments)
+      .catch((e) => setDocumentsError(e instanceof Error ? e.message : "Failed to load documents"))
+      .finally(() => setLoading(false));
+  }, [projectId, token]);
+
   function loadDocs(t: string) {
     return apiFetch<DocumentRow[]>(`/v1/projects/${projectId}/documents`, { token: t }).then(
       setDocuments,
     );
   }
 
-  useEffect(() => {
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
-    loadDocs(token)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => setLoading(false));
-  }, [projectId, router, token]);
-
   async function pasteDocument(e: React.FormEvent) {
     e.preventDefault();
     if (!token) return;
-    setError(null);
+    setPasteError(null);
     try {
       await apiFetch(`/v1/projects/${projectId}/documents/paste`, {
         method: "POST",
@@ -57,14 +57,14 @@ export default function ProjectPage() {
       });
       await loadDocs(token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Paste failed");
+      setPasteError(err instanceof Error ? err.message : "Paste failed");
     }
   }
 
   async function onFileSelected(file: File) {
     if (!token) return;
     setUploading(true);
-    setError(null);
+    setUploadError(null);
     try {
       const presign = await apiFetch<{ uploadUrl: string; documentId: string }>(
         `/v1/projects/${projectId}/documents/presign`,
@@ -78,19 +78,27 @@ export default function ProjectPage() {
           }),
         },
       );
+      const contentType = file.type || "text/plain";
       const put = await fetch(presign.uploadUrl, {
         method: "PUT",
-        headers: { "Content-Type": file.type || "text/plain" },
+        headers: { "Content-Type": contentType },
         body: file,
       });
-      if (!put.ok) throw new Error("Upload to storage failed");
+      if (!put.ok) {
+        const body = await put.text().catch(() => "");
+        throw new Error(
+          body.trim()
+            ? `Upload to storage failed (${put.status}): ${body.slice(0, 200)}`
+            : `Upload to storage failed (${put.status} ${put.statusText})`,
+        );
+      }
       await apiFetch(`/v1/documents/${presign.documentId}/complete`, {
         method: "POST",
         token,
       });
       await loadDocs(token);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -99,7 +107,7 @@ export default function ProjectPage() {
   async function startReview(documentId: string) {
     if (!token) return;
     setStartingReview(documentId);
-    setError(null);
+    setDocumentsError(null);
     try {
       const review = await apiFetch<{ id: string }>(`/v1/projects/${projectId}/reviews`, {
         method: "POST",
@@ -108,14 +116,14 @@ export default function ProjectPage() {
       });
       router.push(`/reviews/${review.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not start review");
+      setDocumentsError(err instanceof Error ? err.message : "Could not start review");
       setStartingReview(null);
     }
   }
 
   async function trySample() {
     if (!token) return;
-    setError(null);
+    setDocumentsError(null);
     try {
       const review = await apiFetch<{ id: string }>(`/v1/projects/${projectId}/demo`, {
         method: "POST",
@@ -123,23 +131,21 @@ export default function ProjectPage() {
       });
       router.push(`/reviews/${review.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sample failed");
+      setDocumentsError(err instanceof Error ? err.message : "Sample failed");
     }
   }
 
-  if (!token) return null;
+  if (!ready || !token) return null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
       <Link href="/projects" className="text-sm text-[var(--text-muted)] underline">
         ← Projects
       </Link>
-      <h1 className="mt-4 text-2xl font-semibold">Project documents</h1>
-      <p className="mt-1 text-xs text-[var(--text-muted)]">
+      <AppHeader title="Project documents" />
+      <p className="-mt-4 text-xs text-[var(--text-muted)]">
         Demo only: use synthetic or public sample contracts.
       </p>
-
-      {error && <p className="mt-4 text-sm text-[var(--critical)]" role="alert">{error}</p>}
 
       <section className="mt-6 rounded-lg border border-[var(--border)] p-4">
         <h2 className="text-sm font-medium">Upload file</h2>
@@ -157,6 +163,11 @@ export default function ProjectPage() {
           }}
         />
         {uploading && <p className="mt-2 text-xs">Uploading…</p>}
+        {uploadError && (
+          <p className="mt-2 text-sm text-[var(--critical)]" role="alert">
+            {uploadError}
+          </p>
+        )}
       </section>
 
       <form onSubmit={pasteDocument} className="mt-6 rounded-lg border border-[var(--border)] p-4">
@@ -183,6 +194,11 @@ export default function ProjectPage() {
         >
           Save as document
         </button>
+        {pasteError && (
+          <p className="mt-2 text-sm text-[var(--critical)]" role="alert">
+            {pasteError}
+          </p>
+        )}
       </form>
 
       <button
@@ -194,6 +210,11 @@ export default function ProjectPage() {
       </button>
 
       <h2 className="mt-8 text-sm font-medium">Documents</h2>
+      {documentsError && (
+        <p className="mt-2 text-sm text-[var(--critical)]" role="alert">
+          {documentsError}
+        </p>
+      )}
       {loading && <p className="text-sm text-[var(--text-muted)]">Loading…</p>}
       {!loading && documents.length === 0 && (
         <p className="text-sm text-[var(--text-muted)]">No documents yet.</p>

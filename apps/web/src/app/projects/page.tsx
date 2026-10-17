@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AppHeader } from "@/components/AppHeader";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { apiFetch } from "@/lib/api";
 import type { Project } from "@/lib/types";
 
@@ -10,9 +12,7 @@ const FRAMEWORKS = ["GDPR", "SOC2", "ISO27001", "HIPAA"] as const;
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const [token] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("cc_token") : null,
-  );
+  const { token, ready } = useAuthSession(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,15 +21,12 @@ export default function ProjectsPage() {
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
+    if (!token) return;
     apiFetch<Project[]>("/v1/projects", { token })
       .then(setProjects)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load projects"))
       .finally(() => setLoading(false));
-  }, [router, token]);
+  }, [token]);
 
   function toggleFramework(code: string) {
     setFrameworks((prev) =>
@@ -58,14 +55,11 @@ export default function ProjectsPage() {
     }
   }
 
-  if (!token) return null;
+  if (!ready || !token) return null;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-10">
-      <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Projects</h1>
-        <Link href="/" className="text-sm text-[var(--text-muted)] underline">Home</Link>
-      </header>
+      <AppHeader title="Projects" />
 
       <form
         onSubmit={createProject}
@@ -107,7 +101,11 @@ export default function ProjectsPage() {
         </button>
       </form>
 
-      {error && <p className="mb-4 text-sm text-[var(--critical)]">{error}</p>}
+      {error && (
+        <p className="mb-4 text-sm text-[var(--critical)]" role="alert">
+          {error}
+        </p>
+      )}
       {loading && <p className="text-sm text-[var(--text-muted)]">Loading projects…</p>}
       {!loading && projects.length === 0 && (
         <p className="text-sm text-[var(--text-muted)]">No projects yet — create one above.</p>

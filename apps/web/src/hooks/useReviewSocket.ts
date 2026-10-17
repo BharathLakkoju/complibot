@@ -9,7 +9,7 @@ type State = {
   reviewStatus: string;
   lastSeq: number;
   connected: boolean;
-  role: string;
+  role: string | null;
   decisionError: string | null;
 };
 
@@ -59,7 +59,7 @@ function handleServerMessage(
     dispatch({
       type: "welcome",
       lastSeq: Number(payload.currentSeq ?? lastSeqRef.current),
-      role: String(payload.role ?? "viewer"),
+      role: String(payload.role ?? "viewer") as "owner" | "reviewer" | "viewer",
     });
     return;
   }
@@ -87,7 +87,7 @@ export function useReviewSocket(reviewId: string, token: string | null) {
     reviewStatus: "queued",
     lastSeq: 0,
     connected: false,
-    role: "viewer",
+    role: null,
     decisionError: null,
   });
   const lastSeqRef = useRef(0);

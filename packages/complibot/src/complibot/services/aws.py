@@ -3,7 +3,9 @@ from typing import Any
 
 import aioboto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 from complibot.config import Settings
+from complibot.exceptions import ServiceUnavailable
 
 
 def _client_kwargs(settings: Settings) -> dict[str, Any]:
@@ -19,19 +21,32 @@ def _client_kwargs(settings: Settings) -> dict[str, Any]:
     return kw
 
 
+def _bucket_missing(exc: ClientError) -> bool:
+    code = exc.response.get("Error", {}).get("Code", "")
+    return code in {"404", "NoSuchBucket", "NotFound"}
+
+
 async def ensure_bucket(settings: Settings) -> None:
+    """Verify the documents bucket exists. Auto-create only against LocalStack-style endpoints."""
     session = aioboto3.Session()
     async with session.client("s3", **_client_kwargs(settings)) as s3:
-        buckets = await s3.list_buckets()
-        names = [b["Name"] for b in buckets.get("Buckets", [])]
-        if settings.s3_bucket not in names:
+        try:
+            await s3.head_bucket(Bucket=settings.s3_bucket)
+        except ClientError as exc:
+            if not _bucket_missing(exc):
+                raise ServiceUnavailable("Document storage is unavailable.") from exc
+            if not settings.aws_endpoint_url:
+                raise ServiceUnavailable("Document storage is not configured.") from exc
             await s3.create_bucket(Bucket=settings.s3_bucket)
 
 
 async def get_object_bytes(settings: Settings, key: str) -> bytes:
     session = aioboto3.Session()
     async with session.client("s3", **_client_kwargs(settings)) as s3:
-        resp = await s3.get_object(Bucket=settings.s3_bucket, Key=key)
+        try:
+            resp = await s3.get_object(Bucket=settings.s3_bucket, Key=key)
+        except ClientError as exc:
+            raise ServiceUnavailable("Could not read uploaded document.") from exc
         body = await resp["Body"].read()
         return bytes(body)
 
@@ -39,11 +54,18 @@ async def get_object_bytes(settings: Settings, key: str) -> bytes:
 async def presign_put(settings: Settings, key: str, content_type: str) -> str:
     session = aioboto3.Session()
     async with session.client("s3", **_client_kwargs(settings)) as s3:
-        return await s3.generate_presigned_url(
-            "put_object",
-            Params={"Bucket": settings.s3_bucket, "Key": key, "ContentType": content_type},
-            ExpiresIn=settings.presign_ttl_seconds,
-        )
+        try:
+            return await s3.generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": settings.s3_bucket,
+                    "Key": key,
+                    "ContentType": content_type,
+                },
+                ExpiresIn=settings.presign_ttl_seconds,
+            )
+        except ClientError as exc:
+            raise ServiceUnavailable("Could not prepare upload URL.") from exc
 
 
 async def enqueue_review_job(settings: Settings, body: dict[str, Any]) -> None:

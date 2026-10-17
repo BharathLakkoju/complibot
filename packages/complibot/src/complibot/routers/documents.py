@@ -10,7 +10,7 @@ from complibot.auth.roles import require_project_role
 from complibot.config import get_settings
 from complibot.db.models import Document
 from complibot.db.session import get_db
-from complibot.exceptions import BadRequest, NotFound
+from complibot.exceptions import BadRequest, NotFound, ServiceUnavailable
 from complibot.ids import new_document_id
 from complibot.schemas import DocumentOut, DocumentPasteIn, DocumentPresignIn, PresignOut
 from complibot.services.aws import ensure_bucket, get_object_bytes, presign_put
@@ -75,7 +75,12 @@ async def presign_upload(
     )
     db.add(doc)
     await db.commit()
-    url = await presign_put(settings, key, mime)
+    try:
+        url = await presign_put(settings, key, mime)
+    except ServiceUnavailable:
+        await db.delete(doc)
+        await db.commit()
+        raise
     return PresignOut(upload_url=url, document_id=doc_id, s3_key=key)
 
 

@@ -21,7 +21,7 @@ export function FindingCard({
   onAccept,
   onReject,
   lowConfidence,
-  canDecide,
+  decisionsState,
 }: {
   finding: Finding;
   selected: boolean;
@@ -30,7 +30,7 @@ export function FindingCard({
   onAccept: () => void;
   onReject: (reason: string) => void;
   lowConfidence: boolean;
-  canDecide: boolean;
+  decisionsState: "loading" | "enabled" | "view_only";
 }) {
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -81,7 +81,9 @@ export function FindingCard({
         >
           Show in document (G)
         </button>
-        {!canDecide ? (
+        {decisionsState === "loading" ? (
+          <span className="text-xs text-[var(--text-muted)]">Loading your role…</span>
+        ) : decisionsState === "view_only" ? (
           <span className="text-xs text-[var(--text-muted)]">View-only role — decisions disabled</span>
         ) : (
           <>
@@ -111,7 +113,7 @@ export function FindingCard({
         )}
         <span className="text-xs capitalize text-[var(--text-muted)]">{finding.status}</span>
       </div>
-      {rejectOpen && canDecide && (
+      {rejectOpen && decisionsState === "enabled" && (
         <div
           className="mt-2 flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface)] p-2"
           onClick={(e) => e.stopPropagation()}
