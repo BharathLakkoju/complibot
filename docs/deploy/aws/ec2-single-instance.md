@@ -60,7 +60,7 @@ cp .env.bootstrap .env   # from user-data; edit CORS and secrets
 Merge production values into `.env` (see root `.env.example` **Production (EC2)** section):
 
 - `POSTGRES_PASSWORD` — strong password (matches compose interpolation).
-- `DATABASE_URL` — leave unset; compose sets it to the `postgres` service.
+- `DATABASE_URL` — leave unset; compose sets it to `127.0.0.1` (host networking on the single EC2 box).
 - `S3_BUCKET`, `SQS_QUEUE_URL`, `AWS_REGION` — from Terraform outputs.
 - `AWS_ENDPOINT_URL` — empty (real AWS).
 - `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` — **leave empty** on EC2 (instance role).

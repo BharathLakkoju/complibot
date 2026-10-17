@@ -1,7 +1,9 @@
 # Production-style stack for a single host (EC2 demo). Copy .env.example → .env and fill prod values.
+# Uses host networking so API/worker reach Postgres on 127.0.0.1 (simple single-box deploy).
 services:
   postgres:
     image: pgvector/pgvector:pg16
+    network_mode: host
     environment:
       POSTGRES_USER: complibot
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-complibot}
@@ -10,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U complibot"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U complibot"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -19,15 +21,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    network_mode: host
     command: ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:-complibot}@postgres:5432/complibot?ssl=disable
+      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:-complibot}@127.0.0.1:5432/complibot?ssl=disable
       AWS_ENDPOINT_URL: ""
       INLINE_WORKER: "false"
-    ports:
-      - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,11 +44,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    network_mode: host
     command: ["python", "apps/worker/main.py"]
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:-complibot}@postgres:5432/complibot?ssl=disable
+      DATABASE_URL: postgresql+asyncpg://complibot:${POSTGRES_PASSWORD:-complibot}@127.0.0.1:5432/complibot?ssl=disable
       AWS_ENDPOINT_URL: ""
       INLINE_WORKER: "false"
     depends_on:
