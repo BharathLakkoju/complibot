@@ -4,6 +4,8 @@ The canonical repo guide for coding agents is **[`AGENTS.md`](../../AGENTS.md)**
 
 This file keeps the **extended definition of done** and pointers to `.cursor/rules` and build skills in `ai/build/skills/`.
 
+**Pull requests:** follow [`docs/CODE-REVIEW-WORKFLOW.md`](../../docs/CODE-REVIEW-WORKFLOW.md) and the [code-review skill](skills/code-review/SKILL.md).
+
 ## Definition of done (full)
 - [ ] Types are generated from schemas, and mypy and tsc pass with no new `Any` or `any`.
 - [ ] Unit and integration tests cover the new behaviour. Reference matching `AC-*` IDs from `docs/ACCEPTANCE-CRITERIA.md` in test names where applicable.
