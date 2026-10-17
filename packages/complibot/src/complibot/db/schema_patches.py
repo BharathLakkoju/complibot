@@ -5,8 +5,4 @@ from sqlalchemy.engine import Connection
 
 
 def apply_schema_patches(sync_conn: Connection) -> None:
-    sync_conn.execute(
-        text(
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"
-        )
-    )
+    sync_conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255)"))
