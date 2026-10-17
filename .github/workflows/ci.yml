@@ -22,7 +22,7 @@ jobs:
       - run: uv sync --all-extras
       - run: uv run ruff check packages tests scripts
       - run: uv run ruff format --check packages tests scripts
-      - run: uv run pytest -q
+      - run: mkdir -p .data && uv run pytest -q
         env:
           PYTHONPATH: packages/complibot/src
           DATABASE_URL: sqlite+aiosqlite:///./.data/complibot.db
