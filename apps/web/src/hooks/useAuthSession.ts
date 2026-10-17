@@ -3,19 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { clearStoredAuthToken, getStoredAuthToken } from "@/lib/authToken";
 
 type Me = { email: string; name: string | null };
 
 export function useAuthSession(requireAuth = false) {
   const router = useRouter();
-  const [token, setToken] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("cc_token") : null,
-  );
+  const [token, setToken] = useState<string | null>(() => getStoredAuthToken());
   const [user, setUser] = useState<Me | null>(null);
-  const [authChecked, setAuthChecked] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("cc_token") === null;
-  });
+  const [authChecked, setAuthChecked] = useState(() => getStoredAuthToken() === null);
 
   useEffect(() => {
     if (!token) {
@@ -31,8 +27,9 @@ export function useAuthSession(requireAuth = false) {
       })
       .catch(() => {
         if (cancelled) return;
-        localStorage.removeItem("cc_token");
+        clearStoredAuthToken();
         setToken(null);
+        setUser(null);
         if (requireAuth) {
           router.replace("/login");
         }
@@ -46,7 +43,7 @@ export function useAuthSession(requireAuth = false) {
   }, [requireAuth, router, token]);
 
   const signOut = useCallback(() => {
-    localStorage.removeItem("cc_token");
+    clearStoredAuthToken();
     setToken(null);
     setUser(null);
     setAuthChecked(true);

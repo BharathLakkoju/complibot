@@ -52,7 +52,7 @@ async def test_cannot_start_review_on_unparsed_document(monkeypatch: pytest.Monk
     async def fake_presign(*_a, **_k):
         return "http://test.invalid/upload"
 
-    monkeypatch.setattr("complibot.routers.documents.ensure_bucket", noop_bucket)
+    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
     monkeypatch.setattr("complibot.routers.documents.presign_put", fake_presign)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:

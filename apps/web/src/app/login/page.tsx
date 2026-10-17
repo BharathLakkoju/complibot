@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { apiFetch } from "@/lib/api";
+import { setStoredAuthToken } from "@/lib/authToken";
 
 type AuthResponse = { accessToken: string };
 
@@ -32,7 +33,7 @@ function LoginForm() {
         method: "POST",
         body: JSON.stringify(body),
       });
-      localStorage.setItem("cc_token", res.accessToken);
+      setStoredAuthToken(res.accessToken);
       router.push("/projects");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");

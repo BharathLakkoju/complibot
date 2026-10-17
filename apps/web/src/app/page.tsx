@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { apiFetch } from "@/lib/api";
+import { setStoredAuthToken } from "@/lib/authToken";
 
 export default function HomePage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function HomePage() {
         method: "POST",
         body: JSON.stringify({ email: "demo@complibot.local", name: "Demo Analyst" }),
       });
-      localStorage.setItem("cc_token", login.accessToken);
+      setStoredAuthToken(login.accessToken);
       const project = await apiFetch<{ id: string }>("/v1/projects", {
         method: "POST",
         token: login.accessToken,

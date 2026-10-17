@@ -17,10 +17,13 @@ export default function ReviewPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<{ start: number; end: number } | null>(null);
   const highlightRef = useRef<HTMLElement>(null);
-  const { state, setReviewStatus, submitDecision, clearDecisionError } = useReviewSocket(
-    reviewId,
-    token,
-  );
+  const { state, setReviewStatus, submitDecision, clearDecisionError, disconnect } =
+    useReviewSocket(reviewId, token);
+
+  function handleSignOut() {
+    disconnect();
+    signOut();
+  }
 
   const [bootFindings, setBootFindings] = useState<Finding[]>([]);
   const [restStatus, setRestStatus] = useState<string>("queued");
@@ -141,7 +144,7 @@ export default function ReviewPage() {
               <button
                 type="button"
                 className="rounded border border-[var(--border-strong)] px-2 py-0.5"
-                onClick={signOut}
+                onClick={handleSignOut}
               >
                 Sign out
               </button>

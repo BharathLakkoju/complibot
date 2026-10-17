@@ -18,7 +18,8 @@ type Action =
   | { type: "finding"; finding: Finding }
   | { type: "status"; status: string }
   | { type: "connected"; value: boolean }
-  | { type: "decisionError"; message: string | null };
+  | { type: "decisionError"; message: string | null }
+  | { type: "sessionEnd" };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -41,6 +42,13 @@ function reducer(state: State, action: Action): State {
       return { ...state, connected: action.value };
     case "decisionError":
       return { ...state, decisionError: action.message };
+    case "sessionEnd":
+      return {
+        ...state,
+        connected: false,
+        role: null,
+        decisionError: null,
+      };
     default:
       return state;
   }
@@ -140,6 +148,15 @@ export function useReviewSocket(reviewId: string, token: string | null) {
     };
   }, [reviewId, token]);
 
+  const disconnect = useCallback(() => {
+    const ws = wsRef.current;
+    if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+      ws.close();
+    }
+    wsRef.current = null;
+    dispatch({ type: "sessionEnd" });
+  }, []);
+
   const submitDecision = useCallback(
     (findingId: string, action: string, findingVersion: number, reason?: string) => {
       dispatch({ type: "decisionError", message: null });
@@ -160,6 +177,7 @@ export function useReviewSocket(reviewId: string, token: string | null) {
     setReviewStatus,
     submitDecision,
     clearDecisionError,
+    disconnect,
     lastSeqRef,
   };
 }

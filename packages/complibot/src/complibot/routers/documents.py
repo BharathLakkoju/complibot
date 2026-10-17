@@ -13,7 +13,7 @@ from complibot.db.session import get_db
 from complibot.exceptions import BadRequest, NotFound, ServiceUnavailable
 from complibot.ids import new_document_id
 from complibot.schemas import DocumentOut, DocumentPasteIn, DocumentPresignIn, PresignOut
-from complibot.services.aws import ensure_bucket, get_object_bytes, presign_put
+from complibot.services.aws import get_object_bytes, maybe_ensure_documents_bucket, presign_put
 from complibot.services.document_ingest import MAX_BYTES, normalize_mime, parse_document
 
 router = APIRouter(prefix="/v1", tags=["documents"])
@@ -59,7 +59,7 @@ async def presign_upload(
     safe_name = body.filename.replace("/", "_").replace("\\", "_")[:200]
     mime = normalize_mime(safe_name, body.content_type)
     settings = get_settings()
-    await ensure_bucket(settings)
+    await maybe_ensure_documents_bucket(settings)
     doc_id = new_document_id()
     key = f"{user.tenant_id}/{project_id}/{doc_id}/{safe_name}"
     doc = Document(
