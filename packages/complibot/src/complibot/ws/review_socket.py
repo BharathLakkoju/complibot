@@ -8,6 +8,7 @@ from complibot.config import get_settings
 from complibot.db.models import ProjectMember, Review, ReviewEvent
 from complibot.db.session import SessionLocal
 from complibot.services.events import append_review_event
+from complibot.ws.decisions import decision_validation_error
 from complibot.ws.hub import review_hub
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
@@ -26,14 +27,26 @@ def _decode_token(token: str) -> dict[str, Any]:
     )
 
 
+def _max_ws_bytes() -> int:
+    return get_settings().ws_max_message_bytes
+
+
+async def _receive_text_limited(websocket: WebSocket) -> str:
+    raw = await websocket.receive_text()
+    if len(raw.encode("utf-8")) > _max_ws_bytes():
+        raise ValueError("message_too_large")
+    return raw
+
+
 @router.websocket("/v1/reviews/{review_id}/ws")
 async def review_ws(websocket: WebSocket, review_id: str) -> None:
-    await websocket.accept()
     connection_id = str(uuid.uuid4())
     user_id: str | None = None
     role = "viewer"
+    joined = False
     try:
-        raw = await websocket.receive_text()
+        await websocket.accept()
+        raw = await _receive_text_limited(websocket)
         hello = json.loads(raw)
         if hello.get("type") != "client.hello":
             await websocket.close(code=4400)
@@ -41,10 +54,17 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
         payload = hello.get("payload", hello)
         token = payload.get("token", "")
         last_seq = int(payload.get("lastSeq") or 0)
-        claims = _decode_token(token)
+        try:
+            claims = _decode_token(token)
+        except jwt.PyJWTError:
+            await websocket.close(code=4401)
+            return
         user_id = str(claims["sub"])
+        tenant_id = str(claims.get("tenant_id", ""))
         async with SessionLocal() as db:
-            review_res = await db.execute(select(Review).where(Review.id == review_id))
+            review_res = await db.execute(
+                select(Review).where(Review.id == review_id, Review.tenant_id == tenant_id)
+            )
             review = review_res.scalar_one_or_none()
             if review is None:
                 await websocket.close(code=4404)
@@ -53,6 +73,7 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                 select(ProjectMember).where(
                     ProjectMember.project_id == review.project_id,
                     ProjectMember.user_id == user_id,
+                    ProjectMember.tenant_id == tenant_id,
                 )
             )
             member = mem_res.scalar_one_or_none()
@@ -106,6 +127,7 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                     )
                 )
         await review_hub.join(review_id, connection_id, websocket, user_id or "")
+        joined = True
         await websocket.send_text(
             json.dumps(
                 {
@@ -125,7 +147,7 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
             )
         )
         while True:
-            msg = await websocket.receive_text()
+            msg = await _receive_text_limited(websocket)
             data = json.loads(msg)
             mtype = data.get("type")
             if mtype == "client.ping":
@@ -165,40 +187,38 @@ async def review_ws(websocket: WebSocket, review_id: str) -> None:
                 )
     except WebSocketDisconnect:
         pass
+    except (json.JSONDecodeError, ValueError):
+        await websocket.close(code=4400)
+    except jwt.PyJWTError:
+        await websocket.close(code=4401)
     finally:
-        await review_hub.leave(review_id, connection_id)
+        if joined:
+            await review_hub.leave(review_id, connection_id)
+
+
+async def _reject_decision(review_id: str, payload: dict[str, Any], code: str) -> None:
+    await review_hub.broadcast(
+        review_id,
+        {
+            "v": 1,
+            "type": "decision.rejected",
+            "id": f"evt_{uuid.uuid4().hex[:20]}",
+            "reviewId": review_id,
+            "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+            "correlationId": payload.get("clientMsgId"),
+            "payload": {"clientMsgId": payload.get("clientMsgId"), "code": code},
+        },
+    )
 
 
 async def _handle_decision(review_id: str, user_id: str, role: str, data: dict[str, Any]) -> None:
     payload = data.get("payload", {})
     action = payload.get("action")
     if role == "viewer":
-        await review_hub.broadcast(
-            review_id,
-            {
-                "v": 1,
-                "type": "decision.rejected",
-                "id": f"evt_{uuid.uuid4().hex[:20]}",
-                "reviewId": review_id,
-                "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                "correlationId": payload.get("clientMsgId"),
-                "payload": {"clientMsgId": payload.get("clientMsgId"), "code": "forbidden"},
-            },
-        )
+        await _reject_decision(review_id, payload, "forbidden")
         return
     if action == "override" and role != "owner":
-        await review_hub.broadcast(
-            review_id,
-            {
-                "v": 1,
-                "type": "decision.rejected",
-                "id": f"evt_{uuid.uuid4().hex[:20]}",
-                "reviewId": review_id,
-                "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
-                "correlationId": payload.get("clientMsgId"),
-                "payload": {"clientMsgId": payload.get("clientMsgId"), "code": "forbidden"},
-            },
-        )
+        await _reject_decision(review_id, payload, "forbidden")
         return
     async with SessionLocal() as db:
         from complibot.db.models import FindingRow
@@ -228,6 +248,10 @@ async def _handle_decision(review_id: str, user_id: str, role: str, data: dict[s
                     },
                 },
             )
+            return
+        invalid = decision_validation_error(action, payload, finding)
+        if invalid:
+            await _reject_decision(review_id, payload, invalid)
             return
         before = finding.model_dump()
         if action == "accept":

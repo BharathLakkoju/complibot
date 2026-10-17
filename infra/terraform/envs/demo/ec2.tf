@@ -24,7 +24,11 @@ resource "aws_instance" "app" {
     repository_url = var.repository_url
     aws_region     = var.aws_region
     s3_bucket      = aws_s3_bucket.documents.bucket
+    backup_bucket  = aws_s3_bucket.backups.bucket
     sqs_queue_url  = aws_sqs_queue.review.url
+    api_domain     = var.api_domain
+    acme_email     = var.acme_email
+    cors_origins   = join(",", var.cors_allowed_origins)
   })
 
   tags = {

@@ -12,16 +12,4 @@ resource "aws_s3_bucket_lifecycle_configuration" "documents" {
     }
   }
 
-  rule {
-    id     = "expire-old-backups"
-    status = "Enabled"
-
-    filter {
-      prefix = "backups/"
-    }
-
-    expiration {
-      days = 90
-    }
-  }
 }

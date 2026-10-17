@@ -15,7 +15,7 @@ resource "aws_iam_role" "ec2" {
 
 data "aws_iam_policy_document" "app" {
   statement {
-    sid    = "S3Documents"
+    sid    = "S3DocumentsList"
     effect = "Allow"
     actions = [
       "s3:ListBucket",
@@ -25,7 +25,7 @@ data "aws_iam_policy_document" "app" {
   }
 
   statement {
-    sid    = "S3Objects"
+    sid    = "S3DocumentsObjects"
     effect = "Allow"
     actions = [
       "s3:GetObject",
@@ -34,6 +34,27 @@ data "aws_iam_policy_document" "app" {
       "s3:AbortMultipartUpload",
     ]
     resources = ["${aws_s3_bucket.documents.arn}/*"]
+  }
+
+  statement {
+    sid    = "S3BackupsList"
+    effect = "Allow"
+    actions = [
+      "s3:ListBucket",
+      "s3:GetBucketLocation",
+    ]
+    resources = [aws_s3_bucket.backups.arn]
+  }
+
+  statement {
+    sid    = "S3BackupsObjects"
+    effect = "Allow"
+    actions = [
+      "s3:GetObject",
+      "s3:PutObject",
+      "s3:DeleteObject",
+    ]
+    resources = ["${aws_s3_bucket.backups.arn}/db/*"]
   }
 
   statement {

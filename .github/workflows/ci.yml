@@ -27,6 +27,16 @@ jobs:
           PYTHONPATH: packages/complibot/src
           DATABASE_URL: sqlite+aiosqlite:///./.data/complibot.db
           INLINE_WORKER: "true"
+          DEV_LOGIN_ENABLED: "true"
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - run: pip install checkov
+      - run: terraform fmt -check -recursive infra/terraform/envs/demo
+        working-directory: .
+      - run: checkov -d infra/terraform/envs/demo --config-file infra/terraform/envs/demo/.checkov.yml
 
   packs:
     runs-on: ubuntu-latest

@@ -40,8 +40,14 @@ variable "ssh_cidr" {
 
 variable "api_cidr" {
   type        = string
-  description = "CIDR allowed to reach the API (port 8000) and HTTP (port 80 for optional reverse proxy)."
+  description = "CIDR allowed to reach HTTPS (443) and HTTP (80 for ACME)."
   default     = "0.0.0.0/0"
+}
+
+variable "cors_allowed_origins" {
+  type        = list(string)
+  description = "Vercel (or other) origins allowed for S3 presigned PUT CORS."
+  default     = ["https://your-vercel-app.vercel.app"]
 }
 
 variable "ssh_key_name" {
@@ -54,4 +60,14 @@ variable "repository_url" {
   type        = string
   description = "Git clone URL baked into user-data (deploy script still does git pull)."
   default     = "https://github.com/BharathLakkoju/complibot.git"
+}
+
+variable "api_domain" {
+  type        = string
+  description = "Public DNS name for the API (Caddy + Let's Encrypt on the EC2 host)."
+}
+
+variable "acme_email" {
+  type        = string
+  description = "Email for Let's Encrypt expiry notices (used by Caddy on the host)."
 }

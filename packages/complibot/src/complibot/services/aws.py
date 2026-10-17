@@ -34,7 +34,7 @@ async def presign_put(settings: Settings, key: str, content_type: str) -> str:
         return await s3.generate_presigned_url(
             "put_object",
             Params={"Bucket": settings.s3_bucket, "Key": key, "ContentType": content_type},
-            ExpiresIn=3600,
+            ExpiresIn=settings.presign_ttl_seconds,
         )
 
 

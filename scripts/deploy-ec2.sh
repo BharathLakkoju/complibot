@@ -5,6 +5,7 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/complibot}"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_PROFILES="${COMPOSE_PROFILES:-tls}"
 BRANCH="${BRANCH:-master}"
 
 cd "$REPO_DIR"
@@ -14,14 +15,25 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
+if ! grep -qE '^API_DOMAIN=.+' .env || ! grep -qE '^ACME_EMAIL=.+' .env; then
+  echo "Set API_DOMAIN and ACME_EMAIL in .env before deploy (DNS A record → this host)." >&2
+  exit 1
+fi
+
 if [[ -d .git ]]; then
   git fetch origin "$BRANCH"
   git checkout "$BRANCH"
   git pull --ff-only origin "$BRANCH"
 fi
 
-docker compose -f "$COMPOSE_FILE" build --pull
-docker compose -f "$COMPOSE_FILE" up -d
+docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" build --pull
+docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" up -d
+
+if compgen -G "database/alembic/versions/*.py" > /dev/null; then
+  echo "Applying database migrations..."
+  docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" exec -T api \
+    uv run alembic -c apps/api/alembic.ini upgrade head
+fi
 
 echo "Waiting for API health..."
 for _ in $(seq 1 30); do

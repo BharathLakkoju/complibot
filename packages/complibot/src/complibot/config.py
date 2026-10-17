@@ -1,6 +1,11 @@
 from functools import lru_cache
+from typing import Self
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+DEFAULT_DEV_SECRET = "dev-only-change-me"
+MIN_DEV_AUTH_SECRET_LEN = 32
 
 
 class Settings(BaseSettings):
@@ -13,16 +18,44 @@ class Settings(BaseSettings):
     aws_access_key_id: str = "test"
     aws_secret_access_key: str = "test"
     s3_bucket: str = "complibot-demo"
+    backup_s3_bucket: str = ""
     sqs_queue_url: str = "http://localhost:4566/000000000000/complibot-review"
     jwt_issuer: str = "http://localhost:8080/mock-issuer"
     jwt_audience: str = "complibot-local"
-    dev_auth_secret: str = "dev-only-change-me"
+    dev_auth_secret: str = DEFAULT_DEV_SECRET
+    dev_login_enabled: bool | None = None
     llm_provider: str = "mock"
     frameworks_path: str = "ai/frameworks"
     replay_max_events: int = 5000
     token_streaming_enabled: bool = True
     cors_origins: str = "http://localhost:3000"
     inline_worker: bool = True
+    schema_auto_create: bool = True
+    ws_max_message_bytes: int = 65536
+    presign_ttl_seconds: int = 300
+
+    @model_validator(mode="after")
+    def validate_security(self) -> Self:
+        if self.dev_login_enabled is None:
+            self.dev_login_enabled = self.app_env == "local"
+
+        if self.app_env != "local" and self.dev_auth_secret == DEFAULT_DEV_SECRET:
+            raise ValueError("Set DEV_AUTH_SECRET to a long random value before non-local deploy")
+
+        if (
+            self.dev_login_enabled
+            and self.app_env == "demo"
+            and len(self.dev_auth_secret) < MIN_DEV_AUTH_SECRET_LEN
+        ):
+            raise ValueError(
+                f"DEV_AUTH_SECRET must be at least {MIN_DEV_AUTH_SECRET_LEN} characters "
+                "for demo when dev login is enabled"
+            )
+
+        if self.presign_ttl_seconds > 300:
+            raise ValueError("PRESIGN_TTL_SECONDS must not exceed 300 (5 minutes)")
+
+        return self
 
 
 @lru_cache

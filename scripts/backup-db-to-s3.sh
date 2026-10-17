@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightly Postgres backup from docker-compose.prod.yml to S3 (uses instance IAM role).
+# Nightly Postgres backup from docker-compose.prod.yml to the dedicated backup bucket.
 set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/opt/complibot}"
@@ -24,12 +24,15 @@ read_env_var() {
 
 cd "$REPO_DIR"
 
-S3_BUCKET="$(read_env_var S3_BUCKET)"
+S3_BUCKET="$(read_env_var BACKUP_S3_BUCKET)"
+if [[ -z "$S3_BUCKET" ]]; then
+  S3_BUCKET="$(read_env_var S3_BUCKET)"
+fi
 AWS_REGION="$(read_env_var AWS_REGION ap-south-1)"
-PREFIX="$(read_env_var BACKUP_S3_PREFIX backups/db)"
+PREFIX="$(read_env_var BACKUP_S3_PREFIX db)"
 
 if [[ -z "$S3_BUCKET" ]]; then
-  echo "S3_BUCKET is not set in $ENV_FILE" >&2
+  echo "BACKUP_S3_BUCKET (or S3_BUCKET) is not set in $ENV_FILE" >&2
   exit 1
 fi
 

@@ -28,6 +28,7 @@ data "aws_ami" "al2023_arm" {
 }
 
 locals {
-  name_prefix = "${var.project}-${var.environment}"
-  bucket_name = "${var.project}-${var.environment}-documents-${data.aws_caller_identity.current.account_id}"
+  name_prefix        = "${var.project}-${var.environment}"
+  bucket_name        = "${var.project}-${var.environment}-documents-${data.aws_caller_identity.current.account_id}"
+  backup_bucket_name = "${var.project}-${var.environment}-backups-${data.aws_caller_identity.current.account_id}"
 }

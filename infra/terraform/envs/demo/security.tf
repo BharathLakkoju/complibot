@@ -19,9 +19,9 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "FastAPI"
-    from_port   = 8000
-    to_port     = 8000
+    description = "HTTPS (Caddy → API on localhost)"
+    from_port   = 443
+    to_port     = 443
     protocol    = "tcp"
     cidr_blocks = [var.api_cidr]
   }
