@@ -62,19 +62,6 @@ async def run_mock_review(
     document = doc_res.scalar_one()
     text = document.normalized_text or ""
 
-    await append_review_event(
-        db,
-        tenant_id=tenant_id,
-        review_id=review_id,
-        event_type="review.status",
-        payload={
-            "status": "running",
-            "progress": {"stage": "ingest", "done": 1, "total": 5},
-            "findingsSoFar": 0,
-        },
-    )
-    await db.commit()
-
     chunk_id = new_id("chk")
     findings_count = 0
     discarded = 0

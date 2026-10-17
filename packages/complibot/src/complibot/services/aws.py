@@ -28,6 +28,14 @@ async def ensure_bucket(settings: Settings) -> None:
             await s3.create_bucket(Bucket=settings.s3_bucket)
 
 
+async def get_object_bytes(settings: Settings, key: str) -> bytes:
+    session = aioboto3.Session()
+    async with session.client("s3", **_client_kwargs(settings)) as s3:
+        resp = await s3.get_object(Bucket=settings.s3_bucket, Key=key)
+        body = await resp["Body"].read()
+        return bytes(body)
+
+
 async def presign_put(settings: Settings, key: str, content_type: str) -> str:
     session = aioboto3.Session()
     async with session.client("s3", **_client_kwargs(settings)) as s3:

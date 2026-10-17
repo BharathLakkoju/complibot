@@ -16,6 +16,11 @@ class Forbidden(AppError):
         super().__init__(message, code="forbidden", status=403)
 
 
+class Unauthorized(AppError):
+    def __init__(self, message: str = "Invalid credentials") -> None:
+        super().__init__(message, code="unauthorized", status=401)
+
+
 class Conflict(AppError):
     def __init__(self, message: str = "Conflict") -> None:
         super().__init__(message, code="conflict", status=409)

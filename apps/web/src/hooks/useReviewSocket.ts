@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useRef, type Dispatch } from "react";
 import { getWsUrl } from "@/lib/api";
 import type { Finding } from "@/lib/types";
 
@@ -10,18 +10,26 @@ type State = {
   lastSeq: number;
   connected: boolean;
   role: string;
+  decisionError: string | null;
 };
 
 type Action =
   | { type: "welcome"; lastSeq: number; role: string }
   | { type: "finding"; finding: Finding }
   | { type: "status"; status: string }
-  | { type: "connected"; value: boolean };
+  | { type: "connected"; value: boolean }
+  | { type: "decisionError"; message: string | null };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
     case "welcome":
-      return { ...state, lastSeq: action.lastSeq, role: action.role, connected: true };
+      return {
+        ...state,
+        lastSeq: action.lastSeq,
+        role: action.role,
+        connected: true,
+        decisionError: null,
+      };
     case "finding":
       return {
         ...state,
@@ -31,8 +39,45 @@ function reducer(state: State, action: Action): State {
       return { ...state, reviewStatus: action.status };
     case "connected":
       return { ...state, connected: action.value };
+    case "decisionError":
+      return { ...state, decisionError: action.message };
     default:
       return state;
+  }
+}
+
+function handleServerMessage(
+  msg: { type?: string; seq?: number; payload?: Record<string, unknown> },
+  dispatch: Dispatch<Action>,
+  lastSeqRef: React.MutableRefObject<number>,
+) {
+  if (typeof msg.seq === "number") {
+    lastSeqRef.current = Math.max(lastSeqRef.current, msg.seq);
+  }
+  const payload = msg.payload ?? {};
+  if (msg.type === "server.welcome") {
+    dispatch({
+      type: "welcome",
+      lastSeq: Number(payload.currentSeq ?? lastSeqRef.current),
+      role: String(payload.role ?? "viewer"),
+    });
+    return;
+  }
+  if (msg.type === "finding.created" || msg.type === "finding.updated") {
+    const finding = payload.finding as Finding;
+    if (finding?.id) {
+      dispatch({ type: "finding", finding });
+    }
+    return;
+  }
+  if (msg.type === "review.status") {
+    const status = payload.status as string;
+    if (status) dispatch({ type: "status", status });
+    return;
+  }
+  if (msg.type === "decision.rejected") {
+    const code = String(payload.code ?? "rejected");
+    dispatch({ type: "decisionError", message: `Decision not applied: ${code}` });
   }
 }
 
@@ -43,16 +88,28 @@ export function useReviewSocket(reviewId: string, token: string | null) {
     lastSeq: 0,
     connected: false,
     role: "viewer",
+    decisionError: null,
   });
-  const [docText, setDocText] = useState<Record<string, string>>({});
   const lastSeqRef = useRef(0);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const connect = useCallback(() => {
+  const setReviewStatus = useCallback((status: string) => {
+    dispatch({ type: "status", status });
+  }, []);
+
+  const clearDecisionError = useCallback(() => {
+    dispatch({ type: "decisionError", message: null });
+  }, []);
+
+  useEffect(() => {
     if (!token) return;
+    let closed = false;
     const ws = new WebSocket(getWsUrl(reviewId));
     wsRef.current = ws;
+
     ws.onopen = () => {
+      if (closed) return;
+      dispatch({ type: "connected", value: true });
       ws.send(
         JSON.stringify({
           v: 1,
@@ -61,37 +118,31 @@ export function useReviewSocket(reviewId: string, token: string | null) {
         }),
       );
     };
+
     ws.onmessage = (ev) => {
-      const msg = JSON.parse(ev.data);
-      if (msg.seq) {
-        lastSeqRef.current = Math.max(lastSeqRef.current, msg.seq);
-        dispatch({ type: "welcome", lastSeq: msg.seq, role: state.role });
-      }
-      if (msg.type === "server.welcome") {
-        dispatch({
-          type: "welcome",
-          lastSeq: msg.payload.currentSeq,
-          role: msg.payload.role,
-        });
-      }
-      if (msg.type === "finding.created" || msg.type === "finding.updated") {
-        dispatch({ type: "finding", finding: msg.payload.finding });
-      }
-      if (msg.type === "review.status") {
-        dispatch({ type: "status", status: msg.payload.status });
+      try {
+        const msg = JSON.parse(ev.data as string);
+        handleServerMessage(msg, dispatch, lastSeqRef);
+      } catch {
+        /* ignore malformed frames */
       }
     };
-    ws.onclose = () => dispatch({ type: "connected", value: false });
-    ws.onerror = () => dispatch({ type: "connected", value: false });
-  }, [reviewId, token, state.role]);
 
-  useEffect(() => {
-    connect();
-    return () => wsRef.current?.close();
-  }, [connect]);
+    ws.onclose = () => {
+      if (!closed) dispatch({ type: "connected", value: false });
+    };
+    ws.onerror = () => dispatch({ type: "connected", value: false });
+
+    return () => {
+      closed = true;
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [reviewId, token]);
 
   const submitDecision = useCallback(
     (findingId: string, action: string, findingVersion: number, reason?: string) => {
+      dispatch({ type: "decisionError", message: null });
       const clientMsgId = crypto.randomUUID();
       wsRef.current?.send(
         JSON.stringify({
@@ -104,5 +155,11 @@ export function useReviewSocket(reviewId: string, token: string | null) {
     [],
   );
 
-  return { state, docText, setDocText, submitDecision, lastSeqRef };
+  return {
+    state,
+    setReviewStatus,
+    submitDecision,
+    clearDecisionError,
+    lastSeqRef,
+  };
 }

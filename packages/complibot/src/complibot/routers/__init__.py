@@ -1,3 +1,3 @@
-from complibot.routers import auth, projects, reviews
+from complibot.routers import auth, documents, projects, reviews
 
-__all__ = ["auth", "projects", "reviews"]
+__all__ = ["auth", "documents", "projects", "reviews"]

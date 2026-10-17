@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Finding } from "@/lib/types";
 
 const severityClass: Record<string, string> = {
@@ -10,21 +11,31 @@ const severityClass: Record<string, string> = {
   info: "border-l-4 border-l-[var(--border-strong)] bg-[var(--surface-2)]",
 };
 
+const MIN_REJECT_REASON = 10;
+
 export function FindingCard({
   finding,
   selected,
   onSelect,
   onShowInDoc,
   onAccept,
+  onReject,
   lowConfidence,
+  canDecide,
 }: {
   finding: Finding;
   selected: boolean;
   onSelect: () => void;
   onShowInDoc: () => void;
   onAccept: () => void;
+  onReject: (reason: string) => void;
   lowConfidence: boolean;
+  canDecide: boolean;
 }) {
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const quote = finding.citations[0]?.quote;
+
   return (
     <article
       className={`rounded-md border p-3 ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"} ${
@@ -51,6 +62,11 @@ export function FindingCard({
       {lowConfidence && (
         <p className="mt-1 text-xs font-medium text-[var(--high)]">Needs careful review</p>
       )}
+      {quote && (
+        <blockquote className="mt-2 border-l-2 border-[var(--border-strong)] pl-2 text-sm italic text-[var(--text-secondary)]">
+          &ldquo;{quote}&rdquo;
+        </blockquote>
+      )}
       <div className="mt-2 rounded bg-[var(--ai-tint)] p-2 text-sm text-[var(--text-secondary)]">
         {finding.rationale}
       </div>
@@ -65,19 +81,63 @@ export function FindingCard({
         >
           Show in document (G)
         </button>
-        <button
-          type="button"
-          className="rounded bg-[var(--success)] px-2 py-1 text-xs text-white disabled:opacity-40"
-          disabled={finding.status !== "open"}
-          onClick={(e) => {
-            e.stopPropagation();
-            onAccept();
-          }}
-        >
-          Accept (A)
-        </button>
+        {!canDecide ? (
+          <span className="text-xs text-[var(--text-muted)]">View-only role — decisions disabled</span>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="rounded bg-[var(--success)] px-2 py-1 text-xs text-white disabled:opacity-40"
+              disabled={finding.status !== "open"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAccept();
+              }}
+            >
+              Accept (A)
+            </button>
+            <button
+              type="button"
+              className="rounded border border-[var(--critical)] px-2 py-1 text-xs text-[var(--critical)] disabled:opacity-40"
+              disabled={finding.status !== "open"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setRejectOpen((v) => !v);
+              }}
+            >
+              Reject (R)
+            </button>
+          </>
+        )}
         <span className="text-xs capitalize text-[var(--text-muted)]">{finding.status}</span>
       </div>
+      {rejectOpen && canDecide && (
+        <div
+          className="mt-2 flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface)] p-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <label className="text-xs text-[var(--text-secondary)]">
+            Reason for rejection (min {MIN_REJECT_REASON} characters, required by API)
+          </label>
+          <textarea
+            className="min-h-[60px] rounded border border-[var(--border)] p-2 text-sm"
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+          />
+          <button
+            type="button"
+            className="self-start rounded bg-[var(--critical)] px-2 py-1 text-xs text-white disabled:opacity-40"
+            disabled={rejectReason.trim().length < MIN_REJECT_REASON || finding.status !== "open"}
+            onClick={() => {
+              onReject(rejectReason.trim());
+              setRejectOpen(false);
+              setRejectReason("");
+            }}
+          >
+            Confirm reject
+          </button>
+        </div>
+      )}
     </article>
   );
 }
