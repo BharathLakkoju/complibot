@@ -33,10 +33,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
-      - run: pip install checkov
+      - run: pip install checkov==3.3.29
       - run: terraform fmt -check -recursive infra/terraform/envs/demo
         working-directory: .
-      - run: checkov -d infra/terraform/envs/demo --config-file infra/terraform/envs/demo/.checkov.yml
+      - run: terraform init -backend=false -input=false && terraform validate
+        working-directory: infra/terraform/envs/demo
+      - run: >-
+          checkov -d infra/terraform/envs/demo --framework terraform --skip-path .terraform
+          --config-file infra/terraform/envs/demo/.checkov.yml
 
   packs:
     runs-on: ubuntu-latest

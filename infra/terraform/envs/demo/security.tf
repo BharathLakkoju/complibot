@@ -11,7 +11,7 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "HTTP (optional reverse proxy)"
+    description = "HTTP for Let's Encrypt HTTP-01 and Caddy redirect to HTTPS"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -27,6 +27,7 @@ resource "aws_security_group" "app" {
   }
 
   egress {
+    description = "Outbound for dnf, image pulls, ACME, S3 and SQS endpoints"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"

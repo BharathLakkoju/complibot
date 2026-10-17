@@ -40,7 +40,7 @@ variable "ssh_cidr" {
 
 variable "api_cidr" {
   type        = string
-  description = "CIDR allowed to reach HTTPS (443) and HTTP (80 for ACME)."
+  description = "CIDR allowed to reach HTTPS (443) and HTTP (80). Keep 0.0.0.0/0: Let's Encrypt validates from undisclosed IPs."
   default     = "0.0.0.0/0"
 }
 

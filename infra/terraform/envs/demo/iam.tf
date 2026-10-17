@@ -30,7 +30,6 @@ data "aws_iam_policy_document" "app" {
     actions = [
       "s3:GetObject",
       "s3:PutObject",
-      "s3:DeleteObject",
       "s3:AbortMultipartUpload",
     ]
     resources = ["${aws_s3_bucket.documents.arn}/*"]
@@ -46,13 +45,13 @@ data "aws_iam_policy_document" "app" {
     resources = [aws_s3_bucket.backups.arn]
   }
 
+  # No DeleteObject: old dumps age out via lifecycle, so a compromised host cannot wipe backups.
   statement {
     sid    = "S3BackupsObjects"
     effect = "Allow"
     actions = [
       "s3:GetObject",
       "s3:PutObject",
-      "s3:DeleteObject",
     ]
     resources = ["${aws_s3_bucket.backups.arn}/db/*"]
   }
@@ -68,10 +67,7 @@ data "aws_iam_policy_document" "app" {
       "sqs:GetQueueUrl",
       "sqs:ChangeMessageVisibility",
     ]
-    resources = [
-      aws_sqs_queue.review.arn,
-      aws_sqs_queue.review_dlq.arn,
-    ]
+    resources = [aws_sqs_queue.review.arn]
   }
 }
 

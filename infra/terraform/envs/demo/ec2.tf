@@ -4,7 +4,9 @@ resource "aws_instance" "app" {
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
   vpc_security_group_ids = [aws_security_group.app.id]
   key_name               = var.ssh_key_name != "" ? var.ssh_key_name : null
+  ebs_optimized          = true
 
+  # Hop limit 1 is enough: compose uses host networking, so containers reach IMDS directly.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
