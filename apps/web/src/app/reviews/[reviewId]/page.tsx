@@ -95,12 +95,13 @@ export default function ReviewPage() {
     selected?.citations[0]?.documentId ?? documentIds[0] ?? null;
   const [docText, setDocText] = useState<Record<string, string>>({});
   const [docErrors, setDocErrors] = useState<Record<string, string>>({});
-  const [docTextLoaded, setDocTextLoaded] = useState(false);
+  const snapshotKey = token ? `${reviewId}:${token}` : null;
+  const [loadedSnapshotKey, setLoadedSnapshotKey] = useState<string | null>(null);
+  const docTextLoaded = snapshotKey !== null && loadedSnapshotKey === snapshotKey;
   const fullText = docId ? docText[docId] ?? "" : "";
 
   useEffect(() => {
-    if (!token) return;
-    setDocTextLoaded(false);
+    if (!token || !snapshotKey) return;
     apiFetch<{
       documents: Record<string, string>;
       documentErrors?: Record<string, string>;
@@ -111,8 +112,8 @@ export default function ReviewPage() {
         setDocText(snap.documents ?? {});
         setDocErrors(snap.documentErrors ?? {});
       })
-      .finally(() => setDocTextLoaded(true));
-  }, [token, reviewId]);
+      .finally(() => setLoadedSnapshotKey(snapshotKey));
+  }, [token, reviewId, snapshotKey]);
 
   useEffect(() => {
     if (highlight && highlightRef.current) {
