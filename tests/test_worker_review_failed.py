@@ -33,7 +33,7 @@ async def test_pipeline_failure_marks_review_failed_on_final_attempt(
     async def fake_put(*_a, **_k):
         return None
 
-    monkeypatch.setattr("complibot_worker.main.run_mock_review", boom)
+    monkeypatch.setattr("complibot_worker.main.run_review", boom)
     monkeypatch.setattr("complibot.services.queue.dispatch_review_job", skip_dispatch)
     monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
     monkeypatch.setattr("complibot.routers.documents.put_object_bytes", fake_put)

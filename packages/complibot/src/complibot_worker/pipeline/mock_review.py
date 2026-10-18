@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from pathlib import Path
-from typing import Any
 
-import yaml
 from complibot.config import get_settings
 from complibot.db.models import Document, FindingRow, Review
 from complibot.ids import new_finding_id, new_id
@@ -17,29 +14,8 @@ from complibot.ws.hub import review_hub
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
-def _load_pack_controls(framework: str, frameworks_path: str) -> list[dict[str, Any]]:
-    folder = {
-        "GDPR": "gdpr",
-        "SOC2": "soc2",
-        "ISO27001": "iso27001",
-        "HIPAA": "hipaa",
-        "INTERNAL": "internal-policy",
-    }.get(framework)
-    if not folder:
-        return []
-    pack_path = Path(frameworks_path) / folder / "pack.yaml"
-    if not pack_path.exists():
-        return []
-    data = yaml.safe_load(pack_path.read_text(encoding="utf-8"))
-    controls = data.get("controls", [])
-    return [c for c in controls if c.get("verify") == "confirmed"]
-
-
-def _coerce_severity(value: object) -> str:
-    allowed = {"critical", "high", "medium", "low", "info"}
-    s = str(value or "medium").lower()
-    return s if s in allowed else "medium"
+from complibot_worker.pipeline.citations import coerce_severity
+from complibot_worker.pipeline.pack_controls import control_ref, load_pack_controls
 
 
 def _find_quote(text: str, needles: list[str]) -> tuple[int, int, str] | None:
@@ -78,9 +54,9 @@ async def run_mock_review(
     discarded = 0
 
     for fw in review.framework_codes:
-        controls = _load_pack_controls(fw, frameworks_path)
+        controls = load_pack_controls(fw, frameworks_path)
         for ctrl in controls:
-            ref = ctrl.get("ref") or ctrl.get("id", "")
+            ref = control_ref(ctrl)
             keywords = ctrl.get("keywords") or [ctrl.get("title", "")]
             span = _find_quote(text, [str(k) for k in keywords if k])
             if span is None:
@@ -127,7 +103,7 @@ async def run_mock_review(
                 control_ref=ref,
                 kind="partial",
                 title=f"Review needed: {ctrl.get('title', ref)[:120]}",
-                severity=_coerce_severity(
+                severity=coerce_severity(
                     ctrl.get("defaultSeverity") or ctrl.get("default_severity")
                 ),
                 confidence=Confidence(
