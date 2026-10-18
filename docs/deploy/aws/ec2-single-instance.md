@@ -62,7 +62,10 @@ terraform apply
 Note outputs: `public_ip`, `api_base_url`, `s3_bucket`, `backup_s3_bucket`, `sqs_queue_url`.
 
 Point **`api_domain`** at `public_ip` (A record or sslip.io). Caddy starts on first boot and retries
-certificate issuance until the name resolves to the instance.
+certificate issuance until the name resolves to the instance. The Caddyfile allows both Let's Encrypt
+and ZeroSSL as ACME issuers (Let's Encrypt first). After HTTPS succeeds, deploy saves
+`s3://<backup_s3_bucket>/caddy/caddy_data.tar.gz` and restores it before Caddy starts on the next
+instance replacement, so certificates survive `terraform apply -replace=aws_instance.app`.
 
 **Do not commit `terraform.tfvars`** if it contains sensitive CIDRs.
 
@@ -128,7 +131,7 @@ docker compose --profile tls -f docker-compose.prod.yml up -d
 ## 4. Database backups (cron)
 
 `cronie` is installed and `crond` enabled by user-data. The instance role can put and get objects under
-`db/` in the backup bucket but cannot delete them; old dumps expire through the bucket lifecycle (90 days, noncurrent
+`db/` and `caddy/` in the backup bucket but cannot delete them; old dumps expire through the bucket lifecycle (90 days, noncurrent
 versions after 30).
 
 ```bash

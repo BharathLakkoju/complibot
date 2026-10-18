@@ -53,7 +53,10 @@ data "aws_iam_policy_document" "app" {
       "s3:GetObject",
       "s3:PutObject",
     ]
-    resources = ["${aws_s3_bucket.backups.arn}/db/*"]
+    resources = [
+      "${aws_s3_bucket.backups.arn}/db/*",
+      "${aws_s3_bucket.backups.arn}/caddy/*",
+    ]
   }
 
   statement {

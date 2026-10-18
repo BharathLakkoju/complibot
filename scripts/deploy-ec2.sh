@@ -30,6 +30,12 @@ fi
 # Always rebuild: web inlines NEXT_PUBLIC_API_URL at build time, so an API_DOMAIN change needs a new image.
 echo "Building images (web: NEXT_PUBLIC_API_URL=https://$api_domain)..."
 docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" build --pull
+
+if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
+  echo "Restoring Caddy TLS storage from S3 (if any)..."
+  bash ./scripts/restore-caddy-data-from-s3.sh || true
+fi
+
 docker compose --profile "$COMPOSE_PROFILES" -f "$COMPOSE_FILE" up -d
 
 if compgen -G "database/alembic/versions/*.py" > /dev/null; then
@@ -56,11 +62,15 @@ if [[ "$healthy" != 1 ]]; then
 fi
 
 if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
-  echo "Checking https://$api_domain/ and /health (Let's Encrypt can take a minute on first boot)..."
+  echo "Checking https://$api_domain/ and /health (ACME can take a minute on first boot)..."
   for _ in $(seq 1 30); do
     if curl -fsS "https://$api_domain/health" >/dev/null 2>&1 \
       && curl -fsS -o /dev/null "https://$api_domain/"; then
-      echo "HTTPS OK (web + API). Deploy complete."
+      echo "HTTPS OK (web + API)."
+      if ! bash ./scripts/backup-caddy-data-to-s3.sh; then
+        echo "Warning: Caddy TLS storage backup to S3 failed (deploy still succeeded)." >&2
+      fi
+      echo "Deploy complete."
       exit 0
     fi
     sleep 4
