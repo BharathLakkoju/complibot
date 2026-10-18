@@ -27,6 +27,8 @@ export default function ReviewPage() {
 
   const [bootFindings, setBootFindings] = useState<Finding[]>([]);
   const [restStatus, setRestStatus] = useState<string>("queued");
+  const [reviewFailure, setReviewFailure] = useState<string | null>(null);
+  const [documentIds, setDocumentIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!token) return;
@@ -36,17 +38,29 @@ export default function ReviewPage() {
     ).then((snap) => {
       setBootFindings(snap.findings ?? []);
     });
-    apiFetch<{ status: string }>(`/v1/reviews/${reviewId}`, { token }).then((r) => {
+    apiFetch<{
+      status: string;
+      documentIds: string[];
+      failure?: { message?: string } | null;
+    }>(`/v1/reviews/${reviewId}`, { token }).then((r) => {
       setRestStatus(r.status);
       setReviewStatus(r.status);
+      setDocumentIds(r.documentIds ?? []);
+      const msg = r.failure?.message;
+      setReviewFailure(r.status === "failed" && msg ? msg : null);
     });
   }, [token, reviewId, setReviewStatus]);
 
   useEffect(() => {
     if (!token) return;
     const poll = window.setInterval(() => {
-      apiFetch<{ status: string }>(`/v1/reviews/${reviewId}`, { token }).then((r) => {
+      apiFetch<{
+        status: string;
+        failure?: { message?: string } | null;
+      }>(`/v1/reviews/${reviewId}`, { token }).then((r) => {
         setRestStatus(r.status);
+        const msg = r.failure?.message;
+        setReviewFailure(r.status === "failed" && msg ? msg : null);
         if (state.reviewStatus === "queued" && r.status !== "queued") {
           setReviewStatus(r.status);
         }
@@ -77,16 +91,29 @@ export default function ReviewPage() {
   }, [findings]);
 
   const selected = findings.find((f) => f.id === selectedId) ?? findings[0];
-  const docId = selected?.citations[0]?.documentId;
+  const docId =
+    selected?.citations[0]?.documentId ?? documentIds[0] ?? null;
   const [docText, setDocText] = useState<Record<string, string>>({});
+  const [docErrors, setDocErrors] = useState<Record<string, string>>({});
+  const snapshotKey = token ? `${reviewId}:${token}` : null;
+  const [loadedSnapshotKey, setLoadedSnapshotKey] = useState<string | null>(null);
+  const docTextLoaded = snapshotKey !== null && loadedSnapshotKey === snapshotKey;
   const fullText = docId ? docText[docId] ?? "" : "";
 
   useEffect(() => {
-    if (!token) return;
-    apiFetch<{ documents: Record<string, string> }>(`/v1/reviews/${reviewId}/snapshot`, {
+    if (!token || !snapshotKey) return;
+    apiFetch<{
+      documents: Record<string, string>;
+      documentErrors?: Record<string, string>;
+    }>(`/v1/reviews/${reviewId}/snapshot`, {
       token,
-    }).then((snap) => setDocText(snap.documents));
-  }, [token, reviewId]);
+    })
+      .then((snap) => {
+        setDocText(snap.documents ?? {});
+        setDocErrors(snap.documentErrors ?? {});
+      })
+      .finally(() => setLoadedSnapshotKey(snapshotKey));
+  }, [token, reviewId, snapshotKey]);
 
   useEffect(() => {
     if (highlight && highlightRef.current) {
@@ -102,6 +129,9 @@ export default function ReviewPage() {
       ? "enabled"
       : "view_only";
   const displayStatus = state.reviewStatus !== "queued" ? state.reviewStatus : restStatus;
+  const reviewDone =
+    displayStatus === "completed" || displayStatus === "failed" || displayStatus === "cancelled";
+  const docLoadError = docId ? docErrors[docId] : null;
 
   useEffect(() => {
     if (!selected) return;
@@ -153,6 +183,14 @@ export default function ReviewPage() {
           <p className="max-w-md text-right">Not legal advice. AI proposes; your team decides.</p>
         </div>
       </header>
+      {reviewFailure && (
+        <div
+          className="bg-[var(--critical-subtle)] px-4 py-2 text-sm text-[var(--critical)]"
+          role="alert"
+        >
+          Review failed: {reviewFailure}
+        </div>
+      )}
       {state.decisionError && (
         <div
           className="flex items-center justify-between bg-[var(--critical-subtle)] px-4 py-2 text-sm text-[var(--critical)]"
@@ -184,15 +222,28 @@ export default function ReviewPage() {
                 </mark>
                 {fullText.slice(highlight.end)}
               </>
+            ) : docLoadError ? (
+              <span className="text-[var(--critical)]">{docLoadError}</span>
+            ) : fullText ? (
+              fullText
+            ) : docTextLoaded ? (
+              <span className="text-[var(--text-muted)]">No document text available.</span>
             ) : (
-              fullText || "Loading document text…"
+              "Loading document text…"
             )}
           </pre>
         </section>
         <section className="flex flex-col gap-3 p-4">
           <h2 className="text-sm font-medium text-[var(--text-secondary)]">Findings</h2>
           <div className="flex flex-col gap-3 overflow-y-auto">
-            {findings.length === 0 && (
+            {findings.length === 0 && reviewDone && (
+              <p className="text-sm text-[var(--text-muted)]">
+                {displayStatus === "failed"
+                  ? "Review did not finish successfully."
+                  : "Review completed with no verified findings."}
+              </p>
+            )}
+            {findings.length === 0 && !reviewDone && (
               <p className="text-sm text-[var(--text-muted)]">Waiting for verified findings…</p>
             )}
             {findings.map((f) => (

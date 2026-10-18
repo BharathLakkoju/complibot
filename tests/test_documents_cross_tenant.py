@@ -13,7 +13,18 @@ async def _register(client: AsyncClient, email: str) -> dict[str, str]:
 
 
 @pytest.mark.asyncio
-async def test_other_tenant_cannot_access_document_or_start_review() -> None:
+async def test_other_tenant_cannot_access_document_or_start_review(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def noop_bucket(*_a, **_k):
+        return None
+
+    async def fake_put(*_a, **_k):
+        return None
+
+    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
+    monkeypatch.setattr("complibot.routers.documents.put_object_bytes", fake_put)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         owner = await _register(client, "owner-doc@example.com")
         intruder = await _register(client, "intruder-doc@example.com")

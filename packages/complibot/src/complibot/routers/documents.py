@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
@@ -13,10 +14,17 @@ from complibot.db.session import get_db
 from complibot.exceptions import BadRequest, NotFound, ServiceUnavailable
 from complibot.ids import new_document_id
 from complibot.schemas import DocumentOut, DocumentPasteIn, DocumentPresignIn, PresignOut
-from complibot.services.aws import get_object_bytes, maybe_ensure_documents_bucket, presign_put
-from complibot.services.document_ingest import MAX_BYTES, normalize_mime, parse_document
+from complibot.services.aws import (
+    get_object_bytes,
+    maybe_ensure_documents_bucket,
+    presign_put,
+    put_object_bytes,
+)
+from complibot.services.document_ingest import MAX_BYTES, normalize_mime
+from complibot.services.document_text import has_usable_text, persist_parsed_upload
 
 router = APIRouter(prefix="/v1", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 
 def _doc_out(doc: Document) -> DocumentOut:
@@ -103,6 +111,7 @@ async def paste_document(
     doc_id = new_document_id()
     key = f"{user.tenant_id}/{project_id}/{doc_id}/{title}"
     data = text.encode("utf-8")
+    settings = get_settings()
     doc = Document(
         id=doc_id,
         tenant_id=user.tenant_id,
@@ -120,6 +129,16 @@ async def paste_document(
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
+    # DB is authoritative for paste. Mirror to S3 when storage is available.
+    try:
+        await maybe_ensure_documents_bucket(settings)
+        await put_object_bytes(settings, key, data, "text/plain")
+    except ServiceUnavailable:
+        logger.warning(
+            "paste_s3_mirror_skipped document_id=%s s3_key_len=%s",
+            doc_id,
+            len(key),
+        )
     return _doc_out(doc)
 
 
@@ -136,7 +155,7 @@ async def complete_upload(
     if doc is None:
         raise NotFound()
     await require_project_role(doc.project_id, "reviewer", user, db)
-    if doc.status == "parsed":
+    if doc.status == "parsed" and has_usable_text(doc.normalized_text):
         return _doc_out(doc)
     if doc.status == "failed":
         raise BadRequest("Document already failed processing; upload again.")
@@ -146,12 +165,5 @@ async def complete_upload(
         doc.status = "failed"
         await db.commit()
         raise BadRequest("File exceeds the 10 MB limit.")
-    parsed = parse_document(doc.filename, doc.mime_type, raw)
-    doc.sha256 = hashlib.sha256(raw).hexdigest()
-    doc.normalized_text = parsed.text
-    doc.page_count = parsed.page_count
-    doc.pii_detected = parsed.pii_detected
-    doc.status = "parsed"
-    await db.commit()
-    await db.refresh(doc)
+    await persist_parsed_upload(db, doc, raw)
     return _doc_out(doc)
