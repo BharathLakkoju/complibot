@@ -20,4 +20,3 @@ async def _ensure_schema():
     if pending:
         await asyncio.gather(*pending, return_exceptions=True)
     await engine.dispose()
-

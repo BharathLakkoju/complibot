@@ -56,9 +56,7 @@ async def test_document_text_error_on_process_message_emits_failed_status_event(
     async with SessionLocal() as db:
         doc = (await db.execute(select(Document).where(Document.id == doc_id))).scalar_one()
         doc.normalized_text = None
-        review_row = (
-            await db.execute(select(Review).where(Review.id == review_id))
-        ).scalar_one()
+        review_row = (await db.execute(select(Review).where(Review.id == review_id))).scalar_one()
         tenant_id = review_row.tenant_id
         review_row.status = "queued"
         await db.commit()
@@ -74,9 +72,7 @@ async def test_document_text_error_on_process_message_emits_failed_status_event(
     )
 
     async with SessionLocal() as db:
-        review_row = (
-            await db.execute(select(Review).where(Review.id == review_id))
-        ).scalar_one()
+        review_row = (await db.execute(select(Review).where(Review.id == review_id))).scalar_one()
         assert review_row.status == "failed"
         events = (
             await db.execute(
