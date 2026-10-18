@@ -73,6 +73,15 @@ data "aws_iam_policy_document" "app" {
     resources = [aws_sqs_queue.review.arn]
   }
 
+  statement {
+    sid    = "SecretsManagerOpenRouterKey"
+    effect = "Allow"
+    actions = [
+      "secretsmanager:GetSecretValue",
+    ]
+    resources = [aws_secretsmanager_secret.openrouter_api_key.arn]
+  }
+
   # Worker Bedrock Converse (Phase C): Nova Micro in the demo region only.
   statement {
     sid    = "BedrockInvokeNovaMicro"

@@ -14,7 +14,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def _render(tmp_path: Path, dev_login_enabled: bool) -> str:
+def _render(
+    tmp_path: Path,
+    dev_login_enabled: bool,
+    *,
+    openrouter_secret_arn: str = "",
+) -> str:
     template_vars = {
         "repository_url": "https://github.com/example/complibot.git",
         "aws_region": "ap-south-1",
@@ -26,6 +31,7 @@ def _render(tmp_path: Path, dev_login_enabled: bool) -> str:
         "cors_origins": "https://203-0-113-50.sslip.io",
         "llm_provider": "mock",
         "openrouter_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "openrouter_secret_arn": openrouter_secret_arn,
     }
     hcl_vars = ", ".join(f"{k} = {json.dumps(v)}" for k, v in template_vars.items())
     expr = (
@@ -55,6 +61,18 @@ def test_dev_login_enabled_renders_into_env_bootstrap(tmp_path: Path, enabled: b
     assert "CORS_ORIGINS=https://203-0-113-50.sslip.io" in lines
     assert "LLM_PROVIDER=mock" in lines
     assert "OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free" in lines
+
+
+def test_rendered_user_data_fetches_openrouter_key_from_secrets_manager(tmp_path: Path) -> None:
+    example_arn = (
+        "arn:aws:secretsmanager:ap-south-1:123456789012:secret:complibot-demo/openrouter-api-key"
+    )
+    rendered = _render(tmp_path, dev_login_enabled=False, openrouter_secret_arn=example_arn)
+    assert "aws secretsmanager get-secret-value" in rendered
+    assert example_arn in rendered
+    assert "could not load OPENROUTER_API_KEY from Secrets Manager (continuing)" in rendered
+    assert "sk-or-" not in rendered
+    assert "OPENROUTER_API_KEY=sk" not in rendered
 
 
 _DEPLOY_TAIL_START = "if [ ! -f /opt/complibot/.env ]; then"
