@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     dev_auth_secret: str = DEFAULT_DEV_SECRET
     dev_login_enabled: bool | None = None
     llm_provider: str = "mock"
+    bedrock_model_id: str = "amazon.nova-micro-v1:0"
+    bedrock_region: str | None = None
+    llm_bedrock_fallback_mock: bool = False
     frameworks_path: str = "ai/frameworks"
     replay_max_events: int = 5000
     token_streaming_enabled: bool = True
@@ -51,6 +54,9 @@ class Settings(BaseSettings):
 
         if self.app_env != "local" and self.llm_provider.lower() == "openrouter":
             raise ValueError("LLM_PROVIDER=openrouter is not allowed outside local (D-08)")
+
+        if self.bedrock_region is None:
+            self.bedrock_region = self.aws_region
 
         if not 0 < self.presign_ttl_seconds <= 300:
             raise ValueError("PRESIGN_TTL_SECONDS must be between 1 and 300 (5 minutes)")

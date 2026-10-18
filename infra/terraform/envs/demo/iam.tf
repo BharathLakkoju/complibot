@@ -72,6 +72,19 @@ data "aws_iam_policy_document" "app" {
     ]
     resources = [aws_sqs_queue.review.arn]
   }
+
+  # Worker Bedrock Converse (Phase C): Nova Micro in the demo region only.
+  statement {
+    sid    = "BedrockInvokeNovaMicro"
+    effect = "Allow"
+    actions = [
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream",
+    ]
+    resources = [
+      "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-micro-v1:0",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "app" {

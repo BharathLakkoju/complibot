@@ -12,7 +12,8 @@ from complibot.services.document_text import DocumentTextError
 from complibot.services.review_status import set_review_status
 from sqlalchemy import select
 
-from complibot_worker.pipeline.mock_review import run_mock_review
+from complibot_worker.pipeline.bedrock_review import BedrockReviewError
+from complibot_worker.pipeline.review import run_review
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("worker")
@@ -47,23 +48,24 @@ async def process_message(body: dict[str, Any], *, final_attempt: bool = False) 
         await db.commit()
     try:
         async with SessionLocal() as db:
-            await run_mock_review(
+            await run_review(
                 db,
                 tenant_id=tenant_id,
                 review_id=review_id,
                 frameworks_path=settings.frameworks_path,
                 token_streaming=settings.token_streaming_enabled,
             )
-    except DocumentTextError as exc:
+    except (DocumentTextError, BedrockReviewError) as exc:
+        stage = "ingest" if isinstance(exc, DocumentTextError) else "assess"
         async with SessionLocal() as db:
             await set_review_status(
                 db,
                 tenant_id=tenant_id,
                 review_id=review_id,
                 status="failed",
-                progress={"stage": "ingest", "done": 0, "total": 5},
+                progress={"stage": stage, "done": 0, "total": 5},
                 failure={
-                    "stage": "ingest",
+                    "stage": stage,
                     "errorCode": exc.code,
                     "message": exc.message,
                     "retryable": False,
