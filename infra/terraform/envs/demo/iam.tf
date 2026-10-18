@@ -83,6 +83,8 @@ data "aws_iam_policy_document" "app" {
     ]
     resources = [
       "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.nova-micro-v1:0",
+      "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/apac.amazon.nova-micro-v1:0",
+      "arn:aws:bedrock:*::foundation-model/amazon.nova-micro-v1:0",
     ]
   }
 }
