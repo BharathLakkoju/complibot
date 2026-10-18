@@ -139,8 +139,9 @@ def _build_prompt(
         "- title: short headline\n"
         "- rationale: why this matters for the control\n"
         "- remediationSummary: suggested fix (plain text)\n"
-        "For kind=gap, omit quote; rationale must explain the absence after reviewing the "
-        "entire document excerpt. Skip controls with no evidence. Do not invent quotes.\n\n"
+        "For kind=gap, omit quote; rationale must explain the absence only after judging "
+        "against the entire provided document text in this message (not a subsection). "
+        "Skip controls with no evidence. Do not invent quotes.\n\n"
         f"Frameworks: {', '.join(framework_codes)}\n"
         f"Controls:\n{controls_block}\n\n"
         f"Document:\n{wrap_document(document_text)}\n"
@@ -348,6 +349,7 @@ async def run_openrouter_review(
     chunk_id = new_id("chk")
     findings_count = 0
     discarded = 0
+    gaps_suppressed_chunked = len(chunks) > 1
 
     for raw in raw_findings:
         ref = str(_field(raw, "controlRef", "control_ref") or "").strip()
@@ -359,6 +361,9 @@ async def run_openrouter_review(
             continue
         kind = coerce_kind(_field(raw, "kind"))
         if kind is None:
+            discarded += 1
+            continue
+        if gaps_suppressed_chunked and kind == "gap":
             discarded += 1
             continue
         quote = str(_field(raw, "quote") or "")
@@ -489,26 +494,29 @@ async def run_openrouter_review(
         await db.commit()
 
     review.status = "completed"
+    status_payload: dict[str, Any] = {
+        "status": "completed",
+        "progress": {"stage": "remediate", "done": 5, "total": 5},
+        "findingsSoFar": findings_count,
+        "discardedCount": discarded,
+    }
+    if gaps_suppressed_chunked:
+        status_payload["gapsSuppressedChunked"] = True
     await append_review_event(
         db,
         tenant_id=tenant_id,
         review_id=review_id,
         event_type="review.status",
-        payload={
-            "status": "completed",
-            "progress": {"stage": "remediate", "done": 5, "total": 5},
-            "findingsSoFar": findings_count,
-            "discardedCount": discarded,
-        },
+        payload=status_payload,
     )
     await db.commit()
-    logger.info(
-        "OpenRouter review completed",
-        extra={
-            "review_id": review_id,
-            "findings_count": findings_count,
-            "discarded_count": discarded,
-            "document_type": doc_type,
-            "chunk_count": len(chunks),
-        },
-    )
+    log_extra: dict[str, Any] = {
+        "review_id": review_id,
+        "findings_count": findings_count,
+        "discarded_count": discarded,
+        "document_type": doc_type,
+        "chunk_count": len(chunks),
+    }
+    if gaps_suppressed_chunked:
+        log_extra["gaps_suppressed_chunked"] = True
+    logger.info("OpenRouter review completed", extra=log_extra)

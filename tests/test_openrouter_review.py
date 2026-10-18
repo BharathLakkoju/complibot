@@ -25,6 +25,7 @@ QA_POLICY_PATH = Path(__file__).resolve().parent / "fixtures" / "test-compliance
 QA_POLICY_TEXT = QA_POLICY_PATH.read_text(encoding="utf-8")
 DPA_QUOTE = "Data Processing Agreement (DPA)"
 GDPR_VENDOR_REF = "Art. 28(3)"
+GDPR_RETENTION_REF = "Art. 5(1)(e)"
 
 
 class _FakeHttpResponse:
@@ -313,3 +314,98 @@ def test_openrouter_malformed_findings_array_raises() -> None:
 def test_locate_verified_citation_openrouter_fixture() -> None:
     span = locate_verified_citation(QA_POLICY_TEXT, DPA_QUOTE)
     assert span is not None
+
+
+def _gap_finding_payload(control_ref: str = GDPR_RETENTION_REF) -> dict:
+    return {
+        "documentType": "internal_policy",
+        "findings": [
+            {
+                "controlRef": control_ref,
+                "kind": "gap",
+                "severity": "medium",
+                "title": "Retention principle not addressed",
+                "rationale": (
+                    "After reviewing the full document text, no clause limits retention "
+                    "or defines storage duration for personal data."
+                ),
+                "remediationSummary": "Add explicit retention limits aligned with purpose.",
+            }
+        ],
+    }
+
+
+@pytest.mark.asyncio
+async def test_openrouter_single_chunk_publishes_gap_finding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _drain_inline_worker()
+    review_id, tenant_id, _ = await _seed_review(monkeypatch, "openrouter-gap@complibot.local")
+
+    payload = _gap_finding_payload()
+    fake = _FakeHttpClient([_FakeHttpResponse(200, _chat_body(payload))])
+    monkeypatch.setattr(
+        "complibot_worker.pipeline.openrouter_review.create_openrouter_http_client",
+        lambda _s: fake,
+    )
+    monkeypatch.setattr(
+        "complibot_worker.pipeline.openrouter_review._split_document_chunks",
+        lambda _text: [QA_POLICY_TEXT],
+    )
+    monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-not-real")
+    get_settings.cache_clear()
+    await process_message({"reviewId": review_id, "tenantId": tenant_id}, final_attempt=True)
+    get_settings.cache_clear()
+
+    async with SessionLocal() as db:
+        findings = (
+            (await db.execute(select(FindingRow).where(FindingRow.review_id == review_id)))
+            .scalars()
+            .all()
+        )
+        gap_rows = [f for f in findings if f.payload.get("kind") == "gap"]
+        assert len(gap_rows) == 1
+        assert gap_rows[0].payload["controlRef"] == GDPR_RETENTION_REF
+
+
+@pytest.mark.asyncio
+async def test_openrouter_multi_chunk_discards_gap_findings(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _drain_inline_worker()
+    review_id, tenant_id, _ = await _seed_review(
+        monkeypatch, "openrouter-chunk-gap@complibot.local"
+    )
+
+    gap_payload = _gap_finding_payload()
+    empty_payload = {"documentType": "internal_policy", "findings": []}
+    fake = _FakeHttpClient(
+        [
+            _FakeHttpResponse(200, _chat_body(gap_payload)),
+            _FakeHttpResponse(200, _chat_body(empty_payload)),
+        ]
+    )
+    monkeypatch.setattr(
+        "complibot_worker.pipeline.openrouter_review.create_openrouter_http_client",
+        lambda _s: fake,
+    )
+    monkeypatch.setattr(
+        "complibot_worker.pipeline.openrouter_review._split_document_chunks",
+        lambda _text: ["first chunk text", "second chunk text"],
+    )
+    monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-not-real")
+    get_settings.cache_clear()
+    await process_message({"reviewId": review_id, "tenantId": tenant_id}, final_attempt=True)
+    get_settings.cache_clear()
+
+    assert len(fake.calls) == 2
+
+    async with SessionLocal() as db:
+        findings = (
+            (await db.execute(select(FindingRow).where(FindingRow.review_id == review_id)))
+            .scalars()
+            .all()
+        )
+        assert not any(f.payload.get("kind") == "gap" for f in findings)
