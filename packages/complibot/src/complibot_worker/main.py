@@ -13,6 +13,7 @@ from complibot.services.review_status import set_review_status
 from sqlalchemy import select
 
 from complibot_worker.pipeline.bedrock_review import BedrockReviewError
+from complibot_worker.pipeline.openrouter_review import OpenRouterReviewError
 from complibot_worker.pipeline.review import run_review
 
 logging.basicConfig(level=logging.INFO)
@@ -55,7 +56,7 @@ async def process_message(body: dict[str, Any], *, final_attempt: bool = False) 
                 frameworks_path=settings.frameworks_path,
                 token_streaming=settings.token_streaming_enabled,
             )
-    except (DocumentTextError, BedrockReviewError) as exc:
+    except (DocumentTextError, BedrockReviewError, OpenRouterReviewError) as exc:
         stage = "ingest" if isinstance(exc, DocumentTextError) else "assess"
         async with SessionLocal() as db:
             await set_review_status(

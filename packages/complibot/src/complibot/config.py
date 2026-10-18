@@ -28,6 +28,11 @@ class Settings(BaseSettings):
     bedrock_model_id: str = "amazon.nova-micro-v1:0"
     bedrock_region: str | None = None
     llm_bedrock_fallback_mock: bool = False
+    openrouter_api_key: str = ""
+    openrouter_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    openrouter_fallback_model: str = "nvidia/nemotron-3-super-120b-a12b:free"
+    openrouter_max_tokens: int = 8000
+    openrouter_timeout_seconds: int = 120
     frameworks_path: str = "ai/frameworks"
     replay_max_events: int = 5000
     token_streaming_enabled: bool = True
@@ -51,9 +56,6 @@ class Settings(BaseSettings):
                 f"DEV_AUTH_SECRET must be at least {MIN_DEV_AUTH_SECRET_LEN} characters "
                 "outside local"
             )
-
-        if self.app_env != "local" and self.llm_provider.lower() == "openrouter":
-            raise ValueError("LLM_PROVIDER=openrouter is not allowed outside local (D-08)")
 
         if self.bedrock_region is None:
             self.bedrock_region = self.aws_region

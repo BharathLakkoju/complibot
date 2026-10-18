@@ -17,3 +17,7 @@ acme_email = "you@example.com"
 
 # Public demo: allow passwordless dev login (any email). Default false for locked-down hosts.
 # dev_login_enabled = true
+
+# Worker LLM (inject OPENROUTER_API_KEY on the instance .env; not in Terraform).
+# llm_provider = "openrouter"
+# openrouter_model = "nvidia/nemotron-3-ultra-550b-a55b:free"

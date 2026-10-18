@@ -77,3 +77,20 @@ variable "dev_login_enabled" {
   description = "When true, passwordless dev login is enabled on the public demo (synthetic data + mock LLM only)."
   default     = false
 }
+
+variable "llm_provider" {
+  type        = string
+  description = "Worker LLM_PROVIDER (mock, bedrock, or openrouter). OPENROUTER_API_KEY is not managed by Terraform."
+  default     = "mock"
+
+  validation {
+    condition     = contains(["mock", "bedrock", "openrouter"], var.llm_provider)
+    error_message = "llm_provider must be mock, bedrock, or openrouter."
+  }
+}
+
+variable "openrouter_model" {
+  type        = string
+  description = "Primary OpenRouter model id when llm_provider=openrouter."
+  default     = "nvidia/nemotron-3-ultra-550b-a55b:free"
+}

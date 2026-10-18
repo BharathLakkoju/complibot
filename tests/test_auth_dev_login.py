@@ -31,9 +31,9 @@ def test_presign_ttl_bounds(ttl: int) -> None:
         Settings(app_env="local", presign_ttl_seconds=ttl)
 
 
-def test_demo_rejects_openrouter() -> None:
-    with pytest.raises(ValidationError):
-        Settings(app_env="demo", dev_auth_secret="x" * 32, llm_provider="openrouter", **DEMO_AWS)
+def test_demo_allows_openrouter_provider() -> None:
+    s = Settings(app_env="demo", dev_auth_secret="x" * 32, llm_provider="openrouter", **DEMO_AWS)
+    assert s.llm_provider == "openrouter"
 
 
 async def test_dev_login_endpoint_403_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
