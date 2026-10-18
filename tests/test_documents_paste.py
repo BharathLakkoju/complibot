@@ -4,7 +4,16 @@ from httpx import ASGITransport, AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_paste_document_and_list() -> None:
+async def test_paste_document_and_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def noop_bucket(*_a, **_k):
+        return None
+
+    async def fake_put(*_a, **_k):
+        return None
+
+    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
+    monkeypatch.setattr("complibot.routers.documents.put_object_bytes", fake_put)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         login = await client.post(
             "/v1/auth/register",

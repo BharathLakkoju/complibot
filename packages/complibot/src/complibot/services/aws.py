@@ -80,6 +80,20 @@ async def get_object_bytes(settings: Settings, key: str) -> bytes:
         return bytes(body)
 
 
+async def put_object_bytes(settings: Settings, key: str, data: bytes, content_type: str) -> None:
+    session = aioboto3.Session()
+    async with session.client("s3", **s3_client_kwargs(settings)) as s3:
+        try:
+            await s3.put_object(
+                Bucket=settings.s3_bucket,
+                Key=key,
+                Body=data,
+                ContentType=content_type,
+            )
+        except ClientError as exc:
+            raise ServiceUnavailable("Could not store document content.") from exc
+
+
 async def presign_put(settings: Settings, key: str, content_type: str) -> str:
     session = aioboto3.Session()
     async with session.client("s3", **s3_client_kwargs(settings)) as s3:

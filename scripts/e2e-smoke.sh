@@ -19,29 +19,33 @@ PROJ=$(curl -fsS -X POST "$API/v1/projects" -H "$AUTH" -H 'Content-Type: applica
 PID=$(echo "$PROJ" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
 echo "projectId=$PID"
 
+export POLICY_TEXT='The Processor shall not engage another processor (sub-processor) without prior written authorisation. The Processor shall notify the Controller without undue delay after becoming aware of a personal data breach. Technical and organisational measures including encryption shall be implemented.'
+
 echo ""
-echo "=== Paste document ==="
+echo "=== Paste document (parity baseline) ==="
 DOC=$(curl -fsS -X POST "$API/v1/projects/$PID/documents/paste" -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"title":"policy","text":"The Processor shall not engage another processor (sub-processor) without prior written authorisation. The Processor shall notify the Controller without undue delay after becoming aware of a personal data breach. Technical and organisational measures including encryption shall be implemented."}')
+  -d "$(python3 -c 'import json,os; print(json.dumps({"title":"policy","text":os.environ["POLICY_TEXT"]}))')")
 DID=$(echo "$DOC" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
-echo "documentId=$DID status=$(echo "$DOC" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')"
+echo "paste documentId=$DID status=$(echo "$DOC" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')"
 
 echo ""
 echo "=== Presign upload (txt) ==="
+UPLOAD_BYTES=$(python3 -c 'import os; print(len(os.environ["POLICY_TEXT"].encode()))')
 PRESIGN=$(curl -fsS -X POST "$API/v1/projects/$PID/documents/presign" -H "$AUTH" -H 'Content-Type: application/json' \
-  -d '{"filename":"e2e-upload.txt","contentType":"text/plain","sizeBytes":64}')
+  -d "{\"filename\":\"e2e-upload.txt\",\"contentType\":\"text/plain\",\"sizeBytes\":$UPLOAD_BYTES}")
 UPLOAD_URL=$(echo "$PRESIGN" | python3 -c 'import sys,json; print(json.load(sys.stdin)["uploadUrl"])')
 UPLOAD_DOC=$(echo "$PRESIGN" | python3 -c 'import sys,json; print(json.load(sys.stdin)["documentId"])')
+export UPLOAD_DOC
 echo "presign documentId=$UPLOAD_DOC"
-printf 'E2E presign upload body for compliance review pipeline smoke test.\n' | curl -fsS -X PUT "$UPLOAD_URL" \
+printf '%s' "$POLICY_TEXT" | curl -fsS -X PUT "$UPLOAD_URL" \
   -H 'Content-Type: text/plain' --data-binary @-
 COMPLETE=$(curl -fsS -X POST "$API/v1/documents/$UPLOAD_DOC/complete" -H "$AUTH")
 echo "upload complete status=$(echo "$COMPLETE" | python3 -c 'import sys,json; print(json.load(sys.stdin)["status"])')"
 
 echo ""
-echo "=== Start review ==="
+echo "=== Start review (S3-backed upload) ==="
 REV=$(curl -fsS -X POST "$API/v1/projects/$PID/reviews" -H "$AUTH" -H 'Content-Type: application/json' \
-  -d "{\"documentIds\":[\"$DID\"]}")
+  -d "{\"documentIds\":[\"$UPLOAD_DOC\"]}")
 RID=$(echo "$REV" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
 echo "reviewId=$RID"
 
@@ -59,6 +63,20 @@ done
 FINDINGS=$(curl -fsS "$API/v1/reviews/$RID/findings" -H "$AUTH")
 F1=$(echo "$FINDINGS" | python3 -c 'import sys,json; f=json.load(sys.stdin); print(f[0]["id"], f[0]["citations"][0]["quote"][:60])')
 echo "first finding: $F1"
+
+echo ""
+echo "=== Snapshot document text (uploaded doc) ==="
+SNAP=$(curl -fsS "$API/v1/reviews/$RID/snapshot" -H "$AUTH")
+echo "$SNAP" | python3 -c '
+import sys, json, os
+snap = json.load(sys.stdin)
+doc_id = os.environ["UPLOAD_DOC"]
+text = snap.get("documents", {}).get(doc_id, "")
+err = snap.get("documentErrors", {}).get(doc_id)
+assert not err, err
+assert "sub-processor" in text, "missing expected upload text in snapshot"
+print("snapshot chars:", len(text))
+'
 
 echo ""
 echo "=== WebSocket accept WITHOUT prior Show-in-document (python) ==="

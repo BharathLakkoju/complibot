@@ -3,10 +3,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from complibot.auth.jwt import AuthUser, current_user
-from complibot.db.models import Document, FindingRow, ProjectMember, Review
+from complibot.config import get_settings
+from complibot.db.models import Document, FindingRow, ProjectMember, Review, ReviewEvent
 from complibot.db.session import get_db
 from complibot.exceptions import NotFound
 from complibot.schemas import Finding
+from complibot.services.document_text import DocumentTextError, resolve_document_text
 
 router = APIRouter(prefix="/v1/reviews", tags=["reviews"])
 
@@ -33,10 +35,32 @@ async def _get_review_access(
     return review
 
 
+async def _latest_failure(db: AsyncSession, review_id: str, tenant_id: str) -> dict | None:
+    result = await db.execute(
+        select(ReviewEvent)
+        .where(
+            ReviewEvent.review_id == review_id,
+            ReviewEvent.tenant_id == tenant_id,
+            ReviewEvent.type == "review.status",
+        )
+        .order_by(ReviewEvent.seq.desc())
+        .limit(5)
+    )
+    for event in result.scalars():
+        failure = event.payload.get("failure")
+        if failure:
+            return failure
+    return None
+
+
 @router.get("/{review_id}")
 async def get_review(
     review: Review = Depends(_get_review_access),
+    db: AsyncSession = Depends(get_db),
 ) -> dict:
+    failure = None
+    if review.status == "failed":
+        failure = await _latest_failure(db, review.id, review.tenant_id)
     return {
         "id": review.id,
         "projectId": review.project_id,
@@ -45,6 +69,7 @@ async def get_review(
         "status": review.status,
         "lastSeq": review.last_seq,
         "createdAt": review.created_at.isoformat(),
+        "failure": failure,
     }
 
 
@@ -63,16 +88,24 @@ async def snapshot(
     review: Review = Depends(_get_review_access),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    settings = get_settings()
     findings = await list_findings(review, db)
     doc_texts: dict[str, str] = {}
+    doc_errors: dict[str, str] = {}
     for doc_id in review.document_ids:
         res = await db.execute(select(Document).where(Document.id == doc_id))
         doc = res.scalar_one_or_none()
-        if doc and doc.normalized_text:
-            doc_texts[doc_id] = doc.normalized_text
+        if doc is None:
+            doc_errors[doc_id] = "Document not found."
+            continue
+        try:
+            doc_texts[doc_id] = await resolve_document_text(db, settings, doc, persist=False)
+        except DocumentTextError as exc:
+            doc_errors[doc_id] = exc.message
     return {
         "reviewId": review.id,
         "currentSeq": review.last_seq,
         "findings": [f.model_dump(by_alias=True) for f in findings],
         "documents": doc_texts,
+        "documentErrors": doc_errors,
     }

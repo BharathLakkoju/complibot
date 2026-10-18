@@ -16,8 +16,16 @@ async def test_pipeline_failure_marks_review_failed_on_final_attempt(
     async def skip_dispatch(_settings, _body):
         return None
 
+    async def noop_bucket(*_a, **_k):
+        return None
+
+    async def fake_put(*_a, **_k):
+        return None
+
     monkeypatch.setattr("complibot_worker.main.run_mock_review", boom)
     monkeypatch.setattr("complibot.routers.projects.dispatch_review_job", skip_dispatch)
+    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
+    monkeypatch.setattr("complibot.routers.documents.put_object_bytes", fake_put)
 
     from complibot.main import app
 

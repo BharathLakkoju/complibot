@@ -8,6 +8,7 @@ import aioboto3
 from complibot.config import get_settings
 from complibot.db.models import Review
 from complibot.db.session import SessionLocal
+from complibot.services.document_text import DocumentTextError
 from complibot.services.review_status import set_review_status
 from sqlalchemy import select
 
@@ -53,6 +54,22 @@ async def process_message(body: dict[str, Any], *, final_attempt: bool = False) 
                 frameworks_path=settings.frameworks_path,
                 token_streaming=settings.token_streaming_enabled,
             )
+    except DocumentTextError as exc:
+        async with SessionLocal() as db:
+            await set_review_status(
+                db,
+                tenant_id=tenant_id,
+                review_id=review_id,
+                status="failed",
+                progress={"stage": "ingest", "done": 0, "total": 5},
+                failure={
+                    "stage": "ingest",
+                    "errorCode": exc.code,
+                    "message": exc.message,
+                    "retryable": False,
+                },
+            )
+            await db.commit()
     except Exception:
         async with SessionLocal() as db:
             res = await db.execute(

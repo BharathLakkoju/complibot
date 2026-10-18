@@ -7,9 +7,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from complibot.config import get_settings
 from complibot.db.models import Document, FindingRow, Review
 from complibot.ids import new_finding_id, new_id
 from complibot.schemas import Citation, Confidence, Finding, FindingProvenance, Remediation
+from complibot.services.document_text import DocumentTextError, resolve_document_text
 from complibot.services.events import append_review_event
 from complibot.ws.hub import review_hub
 from sqlalchemy import select
@@ -60,7 +62,10 @@ async def run_mock_review(
     doc_id = review.document_ids[0]
     doc_res = await db.execute(select(Document).where(Document.id == doc_id))
     document = doc_res.scalar_one()
-    text = document.normalized_text or ""
+    settings = get_settings()
+    text = await resolve_document_text(db, settings, document, persist=True)
+    if not text.strip():
+        raise DocumentTextError("empty_text", "Document text is empty; cannot run review.")
 
     chunk_id = new_id("chk")
     findings_count = 0
