@@ -2,25 +2,15 @@
 
 import boto3
 from complibot.config import get_settings
+from complibot.services.aws import _client_kwargs, s3_client_kwargs
 
 
 def main() -> None:
     settings = get_settings()
-    endpoint = settings.aws_endpoint_url or "http://localhost:4566"
-    s3 = boto3.client(
-        "s3",
-        endpoint_url=endpoint,
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
-    )
-    sqs = boto3.client(
-        "sqs",
-        endpoint_url=endpoint,
-        region_name=settings.aws_region,
-        aws_access_key_id=settings.aws_access_key_id,
-        aws_secret_access_key=settings.aws_secret_access_key,
-    )
+    if not settings.aws_endpoint_url:
+        settings = settings.model_copy(update={"aws_endpoint_url": "http://localhost:4566"})
+    s3 = boto3.client("s3", **s3_client_kwargs(settings))
+    sqs = boto3.client("sqs", **_client_kwargs(settings))
     buckets = [b["Name"] for b in s3.list_buckets().get("Buckets", [])]
     if settings.s3_bucket not in buckets:
         s3.create_bucket(Bucket=settings.s3_bucket)

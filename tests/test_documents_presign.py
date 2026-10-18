@@ -1,11 +1,12 @@
 from urllib.parse import urlparse
 
-import boto3
+import pytest
 from complibot.config import Settings
-from complibot.services.aws import s3_client_kwargs
+from complibot.services.aws import presign_put
 
 
-def test_production_presigned_put_uses_regional_virtual_host() -> None:
+@pytest.mark.asyncio
+async def test_production_presigned_put_uses_regional_virtual_host() -> None:
     """Presigned PUT must target the bucket's regional virtual-hosted endpoint."""
     bucket = "complibot-demo-documents-753227947131"
     region = "ap-south-1"
@@ -17,18 +18,15 @@ def test_production_presigned_put_uses_regional_virtual_host() -> None:
         aws_secret_access_key="secret",
         s3_bucket=bucket,
     )
-    s3 = boto3.client("s3", **s3_client_kwargs(settings))
-    url = s3.generate_presigned_url(
-        "put_object",
-        Params={"Bucket": bucket, "Key": "tenant/doc.txt", "ContentType": "text/plain"},
-        ExpiresIn=300,
-    )
+    url = await presign_put(settings, "tenant/doc.txt", "text/plain")
     host = urlparse(url).netloc
     assert host == f"{bucket}.s3.{region}.amazonaws.com"
     assert host.endswith(".s3.amazonaws.com") is False
+    assert "." not in bucket  # demo bucket: no dots, so virtual-hosted TLS is safe
 
 
-def test_localstack_presigned_put_keeps_custom_endpoint_host() -> None:
+@pytest.mark.asyncio
+async def test_localstack_presigned_put_keeps_custom_endpoint_host() -> None:
     settings = Settings(
         aws_endpoint_url="http://localhost:4566",
         aws_region="us-east-1",
@@ -36,10 +34,5 @@ def test_localstack_presigned_put_keeps_custom_endpoint_host() -> None:
         aws_secret_access_key="test",
         s3_bucket="complibot-demo",
     )
-    s3 = boto3.client("s3", **s3_client_kwargs(settings))
-    url = s3.generate_presigned_url(
-        "put_object",
-        Params={"Bucket": settings.s3_bucket, "Key": "k", "ContentType": "text/plain"},
-        ExpiresIn=300,
-    )
+    url = await presign_put(settings, "k", "text/plain")
     assert urlparse(url).netloc == "localhost:4566"
