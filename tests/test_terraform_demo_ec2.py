@@ -24,6 +24,8 @@ def _render(tmp_path: Path, dev_login_enabled: bool) -> str:
         "api_domain": "203-0-113-50.sslip.io",
         "acme_email": "ops@example.com",
         "cors_origins": "https://203-0-113-50.sslip.io",
+        "llm_provider": "mock",
+        "openrouter_model": "nvidia/nemotron-3-ultra-550b-a55b:free",
     }
     hcl_vars = ", ".join(f"{k} = {json.dumps(v)}" for k, v in template_vars.items())
     expr = (
@@ -51,6 +53,8 @@ def test_dev_login_enabled_renders_into_env_bootstrap(tmp_path: Path, enabled: b
     ]
     assert "API_DOMAIN=203-0-113-50.sslip.io" in lines
     assert "CORS_ORIGINS=https://203-0-113-50.sslip.io" in lines
+    assert "LLM_PROVIDER=mock" in lines
+    assert "OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free" in lines
 
 
 _DEPLOY_TAIL_START = "if [ ! -f /opt/complibot/.env ]; then"
