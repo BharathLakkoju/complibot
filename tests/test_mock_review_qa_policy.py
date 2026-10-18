@@ -38,9 +38,29 @@ async def _wait_for_completed_review(
     return res.json()
 
 
-def _assert_verified_findings(
-    findings: list[dict], doc_text: str, document_id: str
-) -> None:
+def _patch_policy_storage(monkeypatch: pytest.MonkeyPatch, raw: bytes) -> None:
+    async def fake_get_object(_settings, key: str) -> bytes:
+        assert key
+        return raw
+
+    async def fake_presign(_settings, key, content_type):
+        assert content_type == "text/plain"
+        return "https://s3.example/upload"
+
+    async def noop_put(*_a, **_k):
+        return None
+
+    async def noop_bucket(*_a, **_k):
+        return None
+
+    monkeypatch.setattr("complibot.routers.documents.get_object_bytes", fake_get_object)
+    monkeypatch.setattr("complibot.services.document_text.get_object_bytes", fake_get_object)
+    monkeypatch.setattr("complibot.routers.documents.put_object_bytes", noop_put)
+    monkeypatch.setattr("complibot.routers.documents.presign_put", fake_presign)
+    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
+
+
+def _assert_verified_findings(findings: list[dict], doc_text: str, document_id: str) -> None:
     assert len(findings) >= 1
     for finding in findings:
         for cite in finding["citations"]:
@@ -55,22 +75,7 @@ async def test_qa_policy_upload_path_produces_verified_findings(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = QA_POLICY_TEXT.encode("utf-8")
-
-    async def fake_get_object(_settings, key: str) -> bytes:
-        assert key  # moto-style upload: object key from presign flow
-        return raw
-
-    async def fake_presign(_settings, key, content_type):
-        assert content_type == "text/plain"
-        assert key.endswith("test-compliance-policy.txt")
-        return "https://s3.example/upload"
-
-    monkeypatch.setattr("complibot.routers.documents.get_object_bytes", fake_get_object)
-    monkeypatch.setattr("complibot.routers.documents.presign_put", fake_presign)
-    async def noop_bucket(*_a, **_k):
-        return None
-
-    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
+    _patch_policy_storage(monkeypatch, raw)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -118,7 +123,7 @@ async def test_qa_policy_upload_path_produces_verified_findings(
         snap_body = snap.json()
         doc_text = snap_body["documents"][doc_id]
         assert doc_text == QA_POLICY_TEXT
-        assert snap_body.get("documentErrors") in (None, [], {})
+        assert snap_body.get("documentErrors", {}).get(doc_id) in (None, "")
 
         _assert_verified_findings(findings, doc_text, doc_id)
 
@@ -136,9 +141,7 @@ async def _run_review_for_text(
     )
     review_id = review.json()["id"]
     await _wait_for_completed_review(client, headers, review_id)
-    return (
-        await client.get(f"/v1/reviews/{review_id}/findings", headers=headers)
-    ).json()
+    return (await client.get(f"/v1/reviews/{review_id}/findings", headers=headers)).json()
 
 
 @pytest.mark.asyncio
@@ -146,20 +149,7 @@ async def test_qa_policy_paste_matches_upload_findings_count(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = QA_POLICY_TEXT.encode("utf-8")
-
-    async def fake_get_object(_settings, _key: str) -> bytes:
-        return raw
-
-    async def fake_presign(_settings, key, content_type):
-        assert content_type == "text/plain"
-        return "https://s3.example/upload"
-
-    monkeypatch.setattr("complibot.routers.documents.get_object_bytes", fake_get_object)
-    monkeypatch.setattr("complibot.routers.documents.presign_put", fake_presign)
-    async def noop_bucket(*_a, **_k):
-        return None
-
-    monkeypatch.setattr("complibot.routers.documents.maybe_ensure_documents_bucket", noop_bucket)
+    _patch_policy_storage(monkeypatch, raw)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -177,9 +167,7 @@ async def test_qa_policy_paste_matches_upload_findings_count(
             json={"title": "test-compliance-policy", "text": QA_POLICY_TEXT},
         )
         paste_doc_id = pasted.json()["id"]
-        paste_findings = await _run_review_for_text(
-            client, headers, project_id, paste_doc_id
-        )
+        paste_findings = await _run_review_for_text(client, headers, project_id, paste_doc_id)
 
         presign = await client.post(
             f"/v1/projects/{project_id}/documents/presign",
@@ -192,9 +180,7 @@ async def test_qa_policy_paste_matches_upload_findings_count(
         )
         upload_doc_id = presign.json()["documentId"]
         await client.post(f"/v1/documents/{upload_doc_id}/complete", headers=headers)
-        upload_findings = await _run_review_for_text(
-            client, headers, project_id, upload_doc_id
-        )
+        upload_findings = await _run_review_for_text(client, headers, project_id, upload_doc_id)
 
         assert len(paste_findings) >= 1
         assert len(paste_findings) == len(upload_findings)

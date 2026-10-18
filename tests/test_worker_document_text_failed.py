@@ -21,15 +21,17 @@ async def test_missing_document_text_marks_review_failed(monkeypatch: pytest.Mon
         return None
 
     monkeypatch.setattr("complibot.services.queue.dispatch_review_job", skip_dispatch)
+    monkeypatch.setattr("complibot.routers.auth._rate_limit_client", lambda _ip: None)
 
     from complibot.main import app
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        reg = await client.post(
-            "/v1/auth/register",
-            json={"email": "no-text@example.com", "password": "securepass1"},
+        login = await client.post(
+            "/v1/auth/dev-login",
+            json={"email": "no-text@complibot.local", "name": "No Text"},
         )
-        headers = {"Authorization": f"Bearer {reg.json()['accessToken']}"}
+        assert login.status_code == 200
+        headers = {"Authorization": f"Bearer {login.json()['accessToken']}"}
         project = await client.post(
             "/v1/projects",
             headers=headers,
