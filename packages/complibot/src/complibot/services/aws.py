@@ -21,6 +21,22 @@ def _client_kwargs(settings: Settings) -> dict[str, Any]:
     return kw
 
 
+def s3_client_kwargs(settings: Settings) -> dict[str, Any]:
+    """Boto3 kwargs for S3 clients (presign, get_object, bucket setup).
+
+    Real AWS: force regional virtual-hosted URLs so presigned PUTs match the
+    bucket region (avoids 307 from the global s3.amazonaws.com endpoint).
+    LocalStack/custom endpoint: leave path-style URLs unchanged.
+    """
+    kw = _client_kwargs(settings)
+    if not settings.aws_endpoint_url:
+        kw["config"] = Config(
+            signature_version="s3v4",
+            s3={"addressing_style": "virtual"},
+        )
+    return kw
+
+
 def _bucket_missing(exc: ClientError) -> bool:
     code = exc.response.get("Error", {}).get("Code", "")
     return code in {"404", "NoSuchBucket", "NotFound"}
@@ -41,7 +57,7 @@ async def maybe_ensure_documents_bucket(settings: Settings) -> None:
 async def ensure_bucket(settings: Settings) -> None:
     """Verify the documents bucket exists. Auto-create only against LocalStack-style endpoints."""
     session = aioboto3.Session()
-    async with session.client("s3", **_client_kwargs(settings)) as s3:
+    async with session.client("s3", **s3_client_kwargs(settings)) as s3:
         try:
             await s3.head_bucket(Bucket=settings.s3_bucket)
         except ClientError as exc:
@@ -55,7 +71,7 @@ async def ensure_bucket(settings: Settings) -> None:
 
 async def get_object_bytes(settings: Settings, key: str) -> bytes:
     session = aioboto3.Session()
-    async with session.client("s3", **_client_kwargs(settings)) as s3:
+    async with session.client("s3", **s3_client_kwargs(settings)) as s3:
         try:
             resp = await s3.get_object(Bucket=settings.s3_bucket, Key=key)
         except ClientError as exc:
@@ -66,7 +82,7 @@ async def get_object_bytes(settings: Settings, key: str) -> bytes:
 
 async def presign_put(settings: Settings, key: str, content_type: str) -> str:
     session = aioboto3.Session()
-    async with session.client("s3", **_client_kwargs(settings)) as s3:
+    async with session.client("s3", **s3_client_kwargs(settings)) as s3:
         try:
             return await s3.generate_presigned_url(
                 "put_object",
