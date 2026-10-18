@@ -32,7 +32,8 @@ def _load_pack_controls(framework: str, frameworks_path: str) -> list[dict[str, 
     if not pack_path.exists():
         return []
     data = yaml.safe_load(pack_path.read_text(encoding="utf-8"))
-    return data.get("controls", [])[:5]
+    controls = data.get("controls", [])
+    return [c for c in controls if c.get("verify") == "confirmed"]
 
 
 def _coerce_severity(value: object) -> str:
@@ -42,10 +43,15 @@ def _coerce_severity(value: object) -> str:
 
 
 def _find_quote(text: str, needles: list[str]) -> tuple[int, int, str] | None:
+    haystack = text.lower()
     for needle in needles:
-        idx = text.find(needle)
+        if not needle:
+            continue
+        needle_s = str(needle)
+        idx = haystack.find(needle_s.lower())
         if idx >= 0:
-            return idx, idx + len(needle), text[idx : idx + len(needle)]
+            end = idx + len(needle_s)
+            return idx, end, text[idx:end]
     return None
 
 
