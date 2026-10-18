@@ -62,8 +62,8 @@ if [[ "$healthy" != 1 ]]; then
 fi
 
 if [[ ",$COMPOSE_PROFILES," == *",tls,"* ]]; then
-  echo "Checking https://$api_domain/ and /health (ACME can take a minute on first boot)..."
-  for _ in $(seq 1 30); do
+  echo "Checking https://$api_domain/ and /health (ACME can take several minutes on first boot)..."
+  for _ in $(seq 1 90); do
     if curl -fsS "https://$api_domain/health" >/dev/null 2>&1 \
       && curl -fsS -o /dev/null "https://$api_domain/"; then
       echo "HTTPS OK (web + API)."
