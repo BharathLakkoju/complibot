@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import re
+from collections import Counter
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
@@ -95,16 +96,53 @@ def _parse_response_payload(text: str) -> tuple[str | None, list[dict[str, Any]]
     return doc_type, [f for f in findings if isinstance(f, dict)]
 
 
-def _build_control_index(
+def _normalize_control_ref_alias(ref: str) -> str:
+    s = ref.strip()
+    s = re.sub(
+        r"^(?:GDPR\s+)?(?:Article\s+|Art\.?\s*)",
+        "",
+        s,
+        flags=re.IGNORECASE,
+    ).strip()
+    return re.sub(r"\s+", " ", s)
+
+
+def _control_ref_alias_segments(canonical_ref: str, ctrl: dict[str, Any]) -> list[str]:
+    segments = [canonical_ref]
+    ctrl_id = str(ctrl.get("id", "")).strip()
+    if ctrl_id:
+        segments.append(ctrl_id)
+    for part in re.split(r"[;,]", canonical_ref):
+        part = part.strip()
+        if part:
+            segments.append(part)
+    return segments
+
+
+def _build_control_alias_index(
     framework_codes: list[str], frameworks_path: str
-) -> dict[str, tuple[str, dict[str, Any]]]:
-    index: dict[str, tuple[str, dict[str, Any]]] = {}
+) -> dict[str, tuple[str, str, dict[str, Any]]]:
+    """Map normalized ref aliases to (canonical_ref, framework, control)."""
+    index: dict[str, tuple[str, str, dict[str, Any]]] = {}
     for fw in framework_codes:
         for ctrl in load_pack_controls(fw, frameworks_path):
-            ref = control_ref(ctrl)
-            if ref:
-                index[ref] = (fw, ctrl)
+            canonical = control_ref(ctrl)
+            if not canonical:
+                continue
+            for segment in _control_ref_alias_segments(canonical, ctrl):
+                key = _normalize_control_ref_alias(segment)
+                if key and key not in index:
+                    index[key] = (canonical, fw, ctrl)
     return index
+
+
+def _resolve_control_ref(
+    raw_ref: str, alias_index: dict[str, tuple[str, str, dict[str, Any]]]
+) -> tuple[str, str, dict[str, Any]] | None:
+    key = _normalize_control_ref_alias(raw_ref)
+    if not key:
+        return None
+    return alias_index.get(key)
 
 
 def _build_prompt(
@@ -327,7 +365,7 @@ async def run_openrouter_review(
     if not text.strip():
         raise DocumentTextError("empty_text", "Document text is empty; cannot run review.")
 
-    control_index = _build_control_index(review.framework_codes, frameworks_path)
+    control_alias_index = _build_control_alias_index(review.framework_codes, frameworks_path)
     chunks = _split_document_chunks(text)
     client = http_client or create_openrouter_http_client(settings)
 
@@ -349,35 +387,45 @@ async def run_openrouter_review(
     chunk_id = new_id("chk")
     findings_count = 0
     discarded = 0
+    discard_reasons: Counter[str] = Counter()
     gaps_suppressed_chunked = len(chunks) > 1
 
     for raw in raw_findings:
-        ref = str(_field(raw, "controlRef", "control_ref") or "").strip()
-        if not ref or ref not in control_index:
+        raw_ref = str(_field(raw, "controlRef", "control_ref") or "").strip()
+        resolved = _resolve_control_ref(raw_ref, control_alias_index)
+        if resolved is None:
             discarded += 1
+            discard_reasons["unknown_control_ref"] += 1
             continue
-        if doc_type == "controller_notice" and _is_art28_processor_ref(ref):
+        ref, fw, ctrl = resolved
+        if doc_type == "controller_notice" and _is_art28_processor_ref(raw_ref):
             discarded += 1
+            discard_reasons["art28_suppressed_controller_notice"] += 1
             continue
         kind = coerce_kind(_field(raw, "kind"))
         if kind is None:
             discarded += 1
+            discard_reasons["invalid_kind"] += 1
             continue
         if gaps_suppressed_chunked and kind == "gap":
             discarded += 1
+            discard_reasons["gap_suppressed_chunked"] += 1
             continue
         quote = str(_field(raw, "quote") or "")
         support = str(_field(raw, "support") or "").strip()
         if kind != "gap":
             if _word_count(quote) < 4:
                 discarded += 1
+                discard_reasons["quote_too_short"] += 1
                 continue
             if not support:
                 discarded += 1
+                discard_reasons["missing_support"] += 1
                 continue
             span = locate_verified_citation(text, quote)
             if span is None:
                 discarded += 1
+                discard_reasons["citation_not_found"] += 1
                 continue
             char_start, char_end, verified_quote = span
         else:
@@ -385,21 +433,23 @@ async def run_openrouter_review(
             if quote:
                 if _word_count(quote) < 4:
                     discarded += 1
+                    discard_reasons["quote_too_short"] += 1
                     continue
                 span = locate_verified_citation(text, quote)
                 if span is None:
                     discarded += 1
+                    discard_reasons["citation_not_found"] += 1
                     continue
                 char_start, char_end, verified_quote = span
-
-        fw, ctrl = control_index[ref]
         title = str(_field(raw, "title") or f"Review: {ctrl.get('title', ref)}")[:200]
         rationale = str(_field(raw, "rationale") or "")[:4000]
         if not rationale.strip():
             discarded += 1
+            discard_reasons["missing_rationale"] += 1
             continue
         if kind == "gap" and len(rationale.strip()) < 20:
             discarded += 1
+            discard_reasons["gap_rationale_too_short"] += 1
             continue
         remediation_text = str(
             _field(raw, "remediationSummary", "remediation_summary", "remediation") or ""
@@ -499,6 +549,7 @@ async def run_openrouter_review(
         "progress": {"stage": "remediate", "done": 5, "total": 5},
         "findingsSoFar": findings_count,
         "discardedCount": discarded,
+        "discardReasons": dict(discard_reasons),
     }
     if gaps_suppressed_chunked:
         status_payload["gapsSuppressedChunked"] = True
@@ -514,9 +565,16 @@ async def run_openrouter_review(
         "review_id": review_id,
         "findings_count": findings_count,
         "discarded_count": discarded,
+        "discard_reasons": dict(discard_reasons),
         "document_type": doc_type,
         "chunk_count": len(chunks),
+        "candidate_count": len(raw_findings),
     }
     if gaps_suppressed_chunked:
         log_extra["gaps_suppressed_chunked"] = True
+    if raw_findings and findings_count == 0:
+        logger.warning(
+            "OpenRouter review discarded all model candidates",
+            extra=log_extra,
+        )
     logger.info("OpenRouter review completed", extra=log_extra)

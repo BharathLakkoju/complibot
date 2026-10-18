@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from complibot.schemas import FindingKind, Severity
 
 _SEVERITIES: set[str] = {"critical", "high", "medium", "low", "info"}
@@ -19,14 +21,29 @@ def coerce_kind(value: object) -> FindingKind | None:
 
 
 def locate_verified_citation(text: str, quote: str) -> tuple[int, int, str] | None:
-    """Return char offsets only when quote is an exact verbatim slice of text."""
+    """Return char offsets when quote matches a contiguous excerpt of text (original casing)."""
     if not quote:
         return None
     idx = text.find(quote)
-    if idx < 0:
+    if idx >= 0:
+        end = idx + len(quote)
+        slice_ = text[idx:end]
+        if slice_ == quote:
+            return idx, end, slice_
+
+    lower_text = text.lower()
+    lower_quote = quote.lower()
+    idx = lower_text.find(lower_quote)
+    if idx >= 0:
+        end = idx + len(quote)
+        return idx, end, text[idx:end]
+
+    words = [w for w in quote.split() if w]
+    if not words:
         return None
-    end = idx + len(quote)
-    slice_ = text[idx:end]
-    if slice_ != quote:
+    pattern = r"\s+".join(re.escape(word) for word in words)
+    match = re.search(pattern, text, flags=re.IGNORECASE)
+    if match is None:
         return None
-    return idx, end, slice_
+    start, end = match.start(), match.end()
+    return start, end, text[start:end]
