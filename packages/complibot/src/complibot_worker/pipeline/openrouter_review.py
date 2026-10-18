@@ -31,7 +31,13 @@ from complibot_worker.pipeline.prompting import wrap_document
 
 logger = logging.getLogger(__name__)
 
-PROMPT_VERSION = "openrouter-chat-1"
+PROMPT_VERSION = "openrouter-chat-2"
+_DISCARDED_REF_SAMPLE_LIMIT = 10
+_DISCARDED_REF_MAX_LEN = 120
+_REF_PREFIX_RE = re.compile(
+    r"^(?:gdpr[\s:\-]+)?(?:articles?|arts?\.?)\s*",
+    flags=re.IGNORECASE,
+)
 _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
 _CHUNK_CHAR_LIMIT = 12_000
@@ -96,15 +102,19 @@ def _parse_response_payload(text: str) -> tuple[str | None, list[dict[str, Any]]
     return doc_type, [f for f in findings if isinstance(f, dict)]
 
 
-def _normalize_control_ref_alias(ref: str) -> str:
+def _strip_ref_title_suffix(ref: str) -> str:
     s = ref.strip()
-    s = re.sub(
-        r"^(?:GDPR\s+)?(?:Article\s+|Art\.?\s*)",
-        "",
-        s,
-        flags=re.IGNORECASE,
-    ).strip()
-    return re.sub(r"\s+", " ", s)
+    s = re.sub(r"\s+-\s+.+$", "", s)
+    s = re.sub(r"\s+\((?!\d)[^)]+\)$", "", s)
+    if s.endswith(".") and not s.endswith(")."):
+        s = s[:-1]
+    return s.strip()
+
+
+def _normalize_control_ref_alias(ref: str) -> str:
+    s = _strip_ref_title_suffix(ref)
+    s = _REF_PREFIX_RE.sub("", s).strip()
+    return re.sub(r"\s+", " ", s).lower()
 
 
 def _control_ref_alias_segments(canonical_ref: str, ctrl: dict[str, Any]) -> list[str]:
@@ -119,21 +129,75 @@ def _control_ref_alias_segments(canonical_ref: str, ctrl: dict[str, Any]) -> lis
     return segments
 
 
+def _article_numbers_in_control_ref(canonical_ref: str) -> set[str]:
+    numbers: set[str] = set()
+    for segment in re.split(r"[;,]", canonical_ref):
+        segment = segment.strip()
+        for match in re.finditer(
+            r"(?:^|[\s(])(?:arts?\.?\s*)?(\d+)",
+            segment,
+            flags=re.IGNORECASE,
+        ):
+            numbers.add(match.group(1))
+    return numbers
+
+
+def _register_control_alias(
+    index: dict[str, tuple[str, str, dict[str, Any]]],
+    alias: str,
+    canonical: str,
+    fw: str,
+    ctrl: dict[str, Any],
+) -> None:
+    key = _normalize_control_ref_alias(alias)
+    if key and key not in index:
+        index[key] = (canonical, fw, ctrl)
+
+
 def _build_control_alias_index(
     framework_codes: list[str], frameworks_path: str
 ) -> dict[str, tuple[str, str, dict[str, Any]]]:
     """Map normalized ref aliases to (canonical_ref, framework, control)."""
     index: dict[str, tuple[str, str, dict[str, Any]]] = {}
+    controls: list[tuple[str, str, dict[str, Any]]] = []
+    article_hits: dict[str, list[tuple[str, str, dict[str, Any]]]] = {}
+
     for fw in framework_codes:
         for ctrl in load_pack_controls(fw, frameworks_path):
             canonical = control_ref(ctrl)
             if not canonical:
                 continue
+            entry = (canonical, fw, ctrl)
+            controls.append(entry)
+            for article in _article_numbers_in_control_ref(canonical):
+                article_hits.setdefault(article, []).append(entry)
             for segment in _control_ref_alias_segments(canonical, ctrl):
-                key = _normalize_control_ref_alias(segment)
-                if key and key not in index:
-                    index[key] = (canonical, fw, ctrl)
+                _register_control_alias(index, segment, canonical, fw, ctrl)
+
+    for article, entries in article_hits.items():
+        unique = {entry[0] for entry in entries}
+        if len(unique) == 1:
+            canonical, fw, ctrl = entries[0]
+            _register_control_alias(index, article, canonical, fw, ctrl)
+
     return index
+
+
+def _truncate_discarded_ref(raw_ref: str) -> str:
+    trimmed = raw_ref.strip()
+    if len(trimmed) <= _DISCARDED_REF_MAX_LEN:
+        return trimmed
+    return trimmed[: _DISCARDED_REF_MAX_LEN - 1] + "…"
+
+
+def _record_discarded_ref(samples: list[str], seen: set[str], raw_ref: str) -> None:
+    if len(samples) >= _DISCARDED_REF_SAMPLE_LIMIT:
+        return
+    sample = _truncate_discarded_ref(raw_ref)
+    if not sample or sample in seen:
+        return
+    seen.add(sample)
+    samples.append(sample)
 
 
 def _resolve_control_ref(
@@ -155,20 +219,23 @@ def _build_prompt(
     for fw in framework_codes:
         for ctrl in load_pack_controls(fw, frameworks_path):
             ref = control_ref(ctrl)
+            ctrl_id = str(ctrl.get("id", ref)).strip()
             title = ctrl.get("title", ref)
             req = str(ctrl.get("requirement", "")).strip().replace("\n", " ")[:500]
-            controls_lines.append(f"- {ref} ({fw}): {title}. {req}")
+            controls_lines.append(f"- {ctrl_id} | {ref} | {title}. {req}")
 
     controls_block = "\n".join(controls_lines)
     return (
         "You are a compliance reviewer. Assess the document only against the listed controls.\n"
         "First classify the document as exactly one documentType:\n"
         "processor_dpa | controller_notice | internal_policy | guidance | other\n"
-        "If documentType is controller_notice, do NOT report Art. 28 processor obligations; "
-        "focus on Arts. 5, 6, and 12-22 instead.\n"
+        "If documentType is controller_notice, do NOT report processor-DPA controls "
+        "(IDs beginning GDPR-28); focus on controller-facing controls such as "
+        "GDPR-5.1.e, GDPR-6, and GDPR-13-14 instead.\n"
         'Return a single JSON object with keys "documentType" and "findings" (array). '
         "Each finding must include:\n"
-        "- controlRef: one of the control refs listed below\n"
+        '- controlRef: copy exactly one control ID from the left column (e.g. "GDPR-32"); '
+        "do not return article text, a shortened number, or a title\n"
         "- kind: violation | gap | partial | compliant\n"
         "- severity: critical | high | medium | low | info\n"
         "- quote: exact verbatim clause or full sentence from the document (minimum four words; "
@@ -191,7 +258,8 @@ def _word_count(text: str) -> int:
 
 
 def _is_art28_processor_ref(ref: str) -> bool:
-    return ref.startswith("Art. 28")
+    lowered = ref.strip().lower()
+    return lowered.startswith("gdpr-28") or ref.startswith("Art. 28")
 
 
 def _split_document_chunks(text: str) -> list[str]:
@@ -388,6 +456,8 @@ async def run_openrouter_review(
     findings_count = 0
     discarded = 0
     discard_reasons: Counter[str] = Counter()
+    discarded_ref_samples: list[str] = []
+    discarded_ref_seen: set[str] = set()
     gaps_suppressed_chunked = len(chunks) > 1
 
     for raw in raw_findings:
@@ -396,6 +466,7 @@ async def run_openrouter_review(
         if resolved is None:
             discarded += 1
             discard_reasons["unknown_control_ref"] += 1
+            _record_discarded_ref(discarded_ref_samples, discarded_ref_seen, raw_ref)
             continue
         ref, fw, ctrl = resolved
         if doc_type == "controller_notice" and _is_art28_processor_ref(raw_ref):
@@ -550,6 +621,7 @@ async def run_openrouter_review(
         "findingsSoFar": findings_count,
         "discardedCount": discarded,
         "discardReasons": dict(discard_reasons),
+        "discardedControlRefSamples": discarded_ref_samples,
     }
     if gaps_suppressed_chunked:
         status_payload["gapsSuppressedChunked"] = True
@@ -566,6 +638,7 @@ async def run_openrouter_review(
         "findings_count": findings_count,
         "discarded_count": discarded,
         "discard_reasons": dict(discard_reasons),
+        "discarded_control_ref_samples": discarded_ref_samples,
         "document_type": doc_type,
         "chunk_count": len(chunks),
         "candidate_count": len(raw_findings),
