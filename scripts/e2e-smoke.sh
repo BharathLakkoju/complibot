@@ -71,9 +71,10 @@ echo "$SNAP" | python3 -c '
 import sys, json, os
 snap = json.load(sys.stdin)
 doc_id = os.environ["UPLOAD_DOC"]
+assert "documentErrors" in snap, "snapshot must expose documentErrors (camelCase)"
 text = snap.get("documents", {}).get(doc_id, "")
 err = snap.get("documentErrors", {}).get(doc_id)
-assert not err, err
+assert err is None, err
 assert "sub-processor" in text, "missing expected upload text in snapshot"
 print("snapshot chars:", len(text))
 '

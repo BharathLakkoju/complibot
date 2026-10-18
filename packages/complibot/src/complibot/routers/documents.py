@@ -1,3 +1,5 @@
+import hashlib
+import logging
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
@@ -22,6 +24,7 @@ from complibot.services.document_ingest import MAX_BYTES, normalize_mime
 from complibot.services.document_text import has_usable_text, persist_parsed_upload
 
 router = APIRouter(prefix="/v1", tags=["documents"])
+logger = logging.getLogger(__name__)
 
 
 def _doc_out(doc: Document) -> DocumentOut:
@@ -109,11 +112,6 @@ async def paste_document(
     key = f"{user.tenant_id}/{project_id}/{doc_id}/{title}"
     data = text.encode("utf-8")
     settings = get_settings()
-    await maybe_ensure_documents_bucket(settings)
-    try:
-        await put_object_bytes(settings, key, data, "text/plain")
-    except ServiceUnavailable:
-        raise
     doc = Document(
         id=doc_id,
         tenant_id=user.tenant_id,
@@ -121,13 +119,26 @@ async def paste_document(
         filename=title[:500],
         mime_type="text/plain",
         s3_key=key,
-        status="uploaded",
+        sha256=hashlib.sha256(data).hexdigest(),
+        status="parsed",
+        normalized_text=text,
+        page_count=1,
         uploaded_by=user.id,
         created_at=datetime.now(UTC),
     )
     db.add(doc)
     await db.commit()
-    await persist_parsed_upload(db, doc, data)
+    await db.refresh(doc)
+    # DB is authoritative for paste. Mirror to S3 when storage is available.
+    try:
+        await maybe_ensure_documents_bucket(settings)
+        await put_object_bytes(settings, key, data, "text/plain")
+    except ServiceUnavailable:
+        logger.warning(
+            "paste_s3_mirror_skipped document_id=%s s3_key_len=%s",
+            doc_id,
+            len(key),
+        )
     return _doc_out(doc)
 
 

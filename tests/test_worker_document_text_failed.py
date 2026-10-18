@@ -20,7 +20,7 @@ async def test_missing_document_text_marks_review_failed(monkeypatch: pytest.Mon
     async def skip_dispatch(_settings, _body):
         return None
 
-    monkeypatch.setattr("complibot.routers.projects.dispatch_review_job", skip_dispatch)
+    monkeypatch.setattr("complibot.services.queue.dispatch_review_job", skip_dispatch)
 
     from complibot.main import app
 
@@ -54,6 +54,7 @@ async def test_missing_document_text_marks_review_failed(monkeypatch: pytest.Mon
         doc.normalized_text = None
         review_row = (await db.execute(select(Review).where(Review.id == review_id))).scalar_one()
         tenant_id = review_row.tenant_id
+        review_row.status = "queued"
         await db.commit()
 
     async def empty_s3(_settings, key):

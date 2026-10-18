@@ -6,7 +6,7 @@ import hashlib
 
 from complibot.config import Settings
 from complibot.db.models import Document
-from complibot.exceptions import BadRequest
+from complibot.exceptions import BadRequest, ServiceUnavailable
 from complibot.services.aws import get_object_bytes
 from complibot.services.document_ingest import parse_document
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,7 +60,13 @@ async def resolve_document_text(
     if not doc.s3_key:
         raise DocumentTextError("missing_storage_key", "Document has no stored content.")
 
-    raw = await get_object_bytes(settings, doc.s3_key)
+    try:
+        raw = await get_object_bytes(settings, doc.s3_key)
+    except ServiceUnavailable as exc:
+        raise DocumentTextError(
+            "storage_unavailable",
+            "Could not read uploaded document from storage.",
+        ) from exc
     parsed = parse_document(doc.filename, doc.mime_type, raw)
     if not has_usable_text(parsed.text):
         raise DocumentTextError(
