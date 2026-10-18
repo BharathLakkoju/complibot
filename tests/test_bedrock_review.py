@@ -196,9 +196,7 @@ async def test_bedrock_review_publishes_verified_findings_only(
             .all()
         )
         bedrock_rows = [
-            f
-            for f in findings
-            if f.payload.get("provenance", {}).get("provider") == "bedrock"
+            f for f in findings if f.payload.get("provenance", {}).get("provider") == "bedrock"
         ]
         assert len(bedrock_rows) == 1
         payload = bedrock_rows[0].payload
