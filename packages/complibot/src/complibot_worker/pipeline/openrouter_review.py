@@ -190,9 +190,7 @@ def _truncate_discarded_ref(raw_ref: str) -> str:
     return trimmed[: _DISCARDED_REF_MAX_LEN - 1] + "…"
 
 
-def _record_discarded_ref(
-    samples: list[str], seen: set[str], raw_ref: str
-) -> None:
+def _record_discarded_ref(samples: list[str], seen: set[str], raw_ref: str) -> None:
     if len(samples) >= _DISCARDED_REF_SAMPLE_LIMIT:
         return
     sample = _truncate_discarded_ref(raw_ref)
