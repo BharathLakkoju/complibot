@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from complibot_worker.pipeline.bedrock_review import BedrockReviewError, run_bedrock_review
 from complibot_worker.pipeline.mock_review import run_mock_review
+from complibot_worker.pipeline.openrouter_review import run_openrouter_review
 
 
 async def run_review(
@@ -39,6 +40,15 @@ async def run_review(
                 )
             else:
                 raise
+        return
+    if provider == "openrouter":
+        await run_openrouter_review(
+            db,
+            tenant_id=tenant_id,
+            review_id=review_id,
+            frameworks_path=frameworks_path,
+            token_streaming=token_streaming,
+        )
         return
     await run_mock_review(
         db,

@@ -32,6 +32,8 @@ resource "aws_instance" "app" {
     acme_email        = var.acme_email
     cors_origins      = join(",", local.browser_origins)
     dev_login_enabled = var.dev_login_enabled
+    llm_provider      = var.llm_provider
+    openrouter_model  = var.openrouter_model
   })
 
   tags = {
