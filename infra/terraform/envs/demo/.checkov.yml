@@ -8,3 +8,5 @@ skip-check:
   - CKV_AWS_126  # EC2 detailed monitoring: billed per metric; basic 5-min metrics suffice
   - CKV_AWS_260  # Port 80 open to 0.0.0.0/0: Let's Encrypt HTTP-01 + HTTPS redirect (Caddy)
   - CKV_AWS_382  # Egress 0.0.0.0/0: dnf, image pulls, ACME and public S3/SQS endpoints (no NAT/VPC endpoints)
+  - CKV_AWS_149  # Secrets Manager KMS CMK: default aws/secretsmanager encryption is enough for a demo API key
+  - CKV2_AWS_57 # Automatic rotation: value is set manually; OpenRouter keys cannot be rotated by AWS Lambdas

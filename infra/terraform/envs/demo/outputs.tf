@@ -37,3 +37,8 @@ output "security_group_id" {
   description = "EC2 security group ID."
   value       = aws_security_group.app.id
 }
+
+output "openrouter_api_key_secret_arn" {
+  description = "Secrets Manager ARN for the OpenRouter API key (value is not in Terraform; set in the console)."
+  value       = aws_secretsmanager_secret.openrouter_api_key.arn
+}

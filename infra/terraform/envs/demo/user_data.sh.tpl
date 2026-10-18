@@ -69,6 +69,35 @@ fi
 touch /var/log/complibot-deploy.log
 chown ec2-user:ec2-user /var/log/complibot-deploy.log
 
+# Best-effort: load OPENROUTER_API_KEY from Secrets Manager when not already set in .env.
+_openrouter_secret_arn="${openrouter_secret_arn}"
+_complibot_env="/opt/complibot/.env"
+if [ -n "$_openrouter_secret_arn" ] && [ -f "$_complibot_env" ]; then
+  if ! grep -qE '^OPENROUTER_API_KEY=.+$' "$_complibot_env"; then
+    _aws_region=$(grep -E '^AWS_REGION=' "$_complibot_env" | head -1 | cut -d= -f2-)
+    set +e
+    _openrouter_key=$(aws secretsmanager get-secret-value \
+      --secret-id "$_openrouter_secret_arn" \
+      --region "$_aws_region" \
+      --query SecretString \
+      --output text 2>/dev/null)
+    _openrouter_fetch_rc=$?
+    set -e
+    if [ "$_openrouter_fetch_rc" -ne 0 ] || [ -z "$_openrouter_key" ]; then
+      echo "openrouter: could not load OPENROUTER_API_KEY from Secrets Manager (continuing)" \
+        >>/var/log/complibot-deploy.log
+    else
+      _env_tmp=$(mktemp)
+      grep -v '^OPENROUTER_API_KEY=' "$_complibot_env" >"$_env_tmp" || true
+      printf 'OPENROUTER_API_KEY=%s\n' "$_openrouter_key" >>"$_env_tmp"
+      install -m 0600 -o ec2-user -g ec2-user "$_env_tmp" "$_complibot_env"
+      rm -f "$_env_tmp"
+      unset _openrouter_key
+    fi
+  fi
+fi
+unset _openrouter_secret_arn _complibot_env _aws_region _env_tmp _openrouter_fetch_rc || true
+
 # runuser calls initgroups(), so the docker group added above applies without a re-login.
 deploy_rc=0
 runuser -u ec2-user -- bash -lc 'cd /opt/complibot && exec ./scripts/deploy-ec2.sh' \
