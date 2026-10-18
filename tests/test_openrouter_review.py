@@ -347,9 +347,7 @@ async def test_openrouter_art32_short_ref_maps_to_composite_control(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     await _drain_inline_worker()
-    review_id, tenant_id, _ = await _seed_review(
-        monkeypatch, "openrouter-art32@complibot.local"
-    )
+    review_id, tenant_id, _ = await _seed_review(monkeypatch, "openrouter-art32@complibot.local")
 
     payload = {
         "documentType": "processor_dpa",
@@ -428,14 +426,10 @@ async def test_openrouter_discard_reasons_logged_when_all_candidates_dropped(
     get_settings.cache_clear()
 
     with caplog.at_level(logging.WARNING):
-        await process_message(
-            {"reviewId": review_id, "tenantId": tenant_id}, final_attempt=True
-        )
+        await process_message({"reviewId": review_id, "tenantId": tenant_id}, final_attempt=True)
     get_settings.cache_clear()
 
-    assert any(
-        "discarded all model candidates" in record.message for record in caplog.records
-    )
+    assert any("discarded all model candidates" in record.message for record in caplog.records)
 
 
 def _gap_finding_payload(control_ref: str = GDPR_RETENTION_REF) -> dict:
