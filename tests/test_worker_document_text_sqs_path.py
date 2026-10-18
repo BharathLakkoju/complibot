@@ -25,15 +25,17 @@ async def test_document_text_error_on_process_message_emits_failed_status_event(
         return None
 
     monkeypatch.setattr("complibot.services.queue.dispatch_review_job", skip_dispatch)
+    monkeypatch.setattr("complibot.routers.auth._rate_limit_client", lambda _ip: None)
 
     from complibot.main import app
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        reg = await client.post(
-            "/v1/auth/register",
-            json={"email": "sqs-fail@example.com", "password": "securepass1"},
+        login = await client.post(
+            "/v1/auth/dev-login",
+            json={"email": "sqs-fail@complibot.local", "name": "SQS Fail"},
         )
-        headers = {"Authorization": f"Bearer {reg.json()['accessToken']}"}
+        assert login.status_code == 200
+        headers = {"Authorization": f"Bearer {login.json()['accessToken']}"}
         project = await client.post(
             "/v1/projects",
             headers=headers,

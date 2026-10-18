@@ -30,7 +30,7 @@ controls:
     mandatory_for: [dpa]
     applies_when: "a party processes personal data on behalf of another"
     mappings: { iso27001: [A.5.34, A.5.20], soc2: [P1.1], hipaa: ["164.504(e)(2)(i)"] }
-    keywords: [annex, schedule, categories of data subjects, types of personal data, purpose]
+    keywords: [annex, schedule, categories of data subjects, types of personal data, purpose, Data Processing Agreement, DPA, vendor]
     verify: confirmed
 
   - id: GDPR-28.3.a
@@ -90,7 +90,7 @@ controls:
     mandatory_for: [dpa]
     applies_when: "personal data processed"
     mappings: { iso27001: [A.8.24, A.8.13, A.5.15, A.8.5], soc2: [CC6.1, CC6.7, A1.2], hipaa: ["164.312(a)(1)", "164.312(e)(1)", "164.308(a)(1)(ii)(A)"] }
-    keywords: [technical and organisational measures, TOMs, encryption, security measures]
+    keywords: [technical and organisational measures, TOMs, encryption, encrypted, AES-256, security measures, multi-factor authentication, MFA]
     verify: confirmed
 
   - id: GDPR-28.2-subprocessors
@@ -207,7 +207,7 @@ controls:
     params: { max_notification_hours: null }   # null = "without undue delay"; skill flags > 72h as gap
     skills: [breach-notification-timeline]
     mappings: { iso27001: [A.5.24, A.5.26, A.6.8], soc2: [CC7.4, CC2.3], hipaa: ["164.410"] }
-    keywords: [personal data breach, security incident, notify, notification]
+    keywords: [personal data breach, security incident, incident response, notify, notification, reported]
     verify: confirmed
 
   - id: GDPR-33.1

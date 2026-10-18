@@ -1,0 +1,16 @@
+Acme Synthetic Compliance Policy v1.0
+
+Section 1 — Access Control
+All employees must use multi-factor authentication (MFA) to access production systems. Access reviews must be performed quarterly by the system owner. Dormant accounts inactive for more than 30 days must be disabled.
+
+Section 2 — Data Retention
+Customer data must be retained for no longer than 7 years and then securely deleted. Backups are encrypted at rest using AES-256. Personal data must not be stored on personal devices.
+
+Section 3 — Incident Response
+Security incidents must be reported to the security team within 24 hours of discovery. The incident response plan must be tested at least annually.
+
+Section 4 — Vendor Management
+All vendors with access to customer data must sign a Data Processing Agreement (DPA) before onboarding. Vendor security assessments are renewed every 12 months.
+
+Section 5 — Password Policy
+Passwords must be at least 12 characters and rotated every 90 days. Passwords must not be reused across systems.

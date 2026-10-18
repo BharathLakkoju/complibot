@@ -19,7 +19,9 @@ PROJ=$(curl -fsS -X POST "$API/v1/projects" -H "$AUTH" -H 'Content-Type: applica
 PID=$(echo "$PROJ" | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
 echo "projectId=$PID"
 
-export POLICY_TEXT='The Processor shall not engage another processor (sub-processor) without prior written authorisation. The Processor shall notify the Controller without undue delay after becoming aware of a personal data breach. Technical and organisational measures including encryption shall be implemented.'
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export POLICY_TEXT
+POLICY_TEXT=$(python3 -c "import pathlib; print(pathlib.Path('$ROOT/tests/fixtures/test-compliance-policy.txt').read_text())")
 
 echo ""
 echo "=== Paste document (parity baseline) ==="
@@ -75,7 +77,7 @@ assert "documentErrors" in snap, "snapshot must expose documentErrors (camelCase
 text = snap.get("documents", {}).get(doc_id, "")
 err = snap.get("documentErrors", {}).get(doc_id)
 assert err is None, err
-assert "sub-processor" in text, "missing expected upload text in snapshot"
+assert "Data Processing Agreement" in text, "missing expected policy upload text in snapshot"
 print("snapshot chars:", len(text))
 '
 
