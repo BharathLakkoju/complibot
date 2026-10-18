@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FindingCard } from "@/components/FindingCard";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { useReviewSocket } from "@/hooks/useReviewSocket";
 import { apiFetch } from "@/lib/api";
 import { mergeFindingMaps } from "@/lib/mergeFindings";
@@ -11,16 +13,17 @@ import type { Finding } from "@/lib/types";
 export default function ReviewPage() {
   const params = useParams();
   const reviewId = String(params.reviewId);
-  const [token] = useState<string | null>(() =>
-    typeof window !== "undefined" ? localStorage.getItem("cc_token") : null,
-  );
+  const { token, user, signOut, ready } = useAuthSession(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [highlight, setHighlight] = useState<{ start: number; end: number } | null>(null);
   const highlightRef = useRef<HTMLElement>(null);
-  const { state, setReviewStatus, submitDecision, clearDecisionError } = useReviewSocket(
-    reviewId,
-    token,
-  );
+  const { state, setReviewStatus, submitDecision, clearDecisionError, disconnect } =
+    useReviewSocket(reviewId, token);
+
+  function handleSignOut() {
+    disconnect();
+    signOut();
+  }
 
   const [bootFindings, setBootFindings] = useState<Finding[]>([]);
   const [restStatus, setRestStatus] = useState<string>("queued");
@@ -91,7 +94,13 @@ export default function ReviewPage() {
     }
   }, [highlight, fullText]);
 
+  const roleLoaded = state.role !== null;
   const canDecide = state.role === "owner" || state.role === "reviewer";
+  const decisionsState: "loading" | "enabled" | "view_only" = !roleLoaded
+    ? "loading"
+    : canDecide
+      ? "enabled"
+      : "view_only";
   const displayStatus = state.reviewStatus !== "queued" ? state.reviewStatus : restStatus;
 
   useEffect(() => {
@@ -112,10 +121,15 @@ export default function ReviewPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [selected, submitDecision, canDecide]);
 
+  if (!ready || !token) return null;
+
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--surface)] px-4 py-3">
         <div>
+          <Link href="/projects" className="text-xs text-[var(--text-muted)] underline">
+            Projects
+          </Link>
           <h1 className="text-lg font-semibold">Live review</h1>
           <p className="text-xs text-[var(--text-muted)]">
             Status: {displayStatus} · Accepted {tallies.accepted} · Rejected {tallies.rejected} ·
@@ -123,9 +137,21 @@ export default function ReviewPage() {
             {state.connected ? "Connected" : "Reconnecting… changes are paused"}
           </p>
         </div>
-        <p className="max-w-md text-right text-xs text-[var(--text-muted)]">
-          Not legal advice. AI proposes; your team decides.
-        </p>
+        <div className="flex flex-col items-end gap-2 text-xs text-[var(--text-muted)]">
+          {user && (
+            <div className="flex items-center gap-2">
+              <span>{user.email}</span>
+              <button
+                type="button"
+                className="rounded border border-[var(--border-strong)] px-2 py-0.5"
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+          <p className="max-w-md text-right">Not legal advice. AI proposes; your team decides.</p>
+        </div>
       </header>
       {state.decisionError && (
         <div
@@ -175,7 +201,7 @@ export default function ReviewPage() {
                 finding={f}
                 selected={f.id === (selectedId ?? findings[0]?.id)}
                 lowConfidence={f.confidence.band === "low"}
-                canDecide={canDecide}
+                decisionsState={decisionsState}
                 onSelect={() => setSelectedId(f.id)}
                 onShowInDoc={() => {
                   const c = f.citations[0];
