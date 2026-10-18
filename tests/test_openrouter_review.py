@@ -15,7 +15,9 @@ from complibot_worker.main import process_message
 from complibot_worker.pipeline.citations import locate_verified_citation
 from complibot_worker.pipeline.openrouter_review import (
     OpenRouterReviewError,
+    _build_control_alias_index,
     _parse_response_payload,
+    _resolve_control_ref,
     _word_count,
 )
 from httpx import ASGITransport, AsyncClient
@@ -23,9 +25,12 @@ from sqlalchemy import delete, select
 
 QA_POLICY_PATH = Path(__file__).resolve().parent / "fixtures" / "test-compliance-policy.txt"
 QA_POLICY_TEXT = QA_POLICY_PATH.read_text(encoding="utf-8")
+FRAMEWORKS_PATH = Path(__file__).resolve().parents[1] / "ai" / "frameworks"
 DPA_QUOTE = "Data Processing Agreement (DPA)"
 GDPR_VENDOR_REF = "Art. 28(3)"
 GDPR_RETENTION_REF = "Art. 5(1)(e)"
+GDPR_SECURITY_COMPOSITE_REF = "Art. 32; Art. 28(3)(c)"
+GDPR_SECURITY_SHORT_REF = "Art. 32"
 
 
 class _FakeHttpResponse:
@@ -314,6 +319,123 @@ def test_openrouter_malformed_findings_array_raises() -> None:
 def test_locate_verified_citation_openrouter_fixture() -> None:
     span = locate_verified_citation(QA_POLICY_TEXT, DPA_QUOTE)
     assert span is not None
+
+
+def test_resolve_control_ref_art32_maps_to_composite_pack_key() -> None:
+    index = _build_control_alias_index(["GDPR"], str(FRAMEWORKS_PATH))
+    resolved = _resolve_control_ref(GDPR_SECURITY_SHORT_REF, index)
+    assert resolved is not None
+    canonical, _fw, ctrl = resolved
+    assert canonical == GDPR_SECURITY_COMPOSITE_REF
+    assert ctrl.get("id") == "GDPR-32"
+
+
+def test_locate_verified_citation_case_and_whitespace_insensitive() -> None:
+    span = locate_verified_citation(QA_POLICY_TEXT, "data   processing agreement (dpa)")
+    assert span is not None
+    start, end, quote = span
+    assert quote == QA_POLICY_TEXT[start:end]
+    assert quote == DPA_QUOTE
+
+
+def test_locate_verified_citation_rejects_fabricated_quote() -> None:
+    assert locate_verified_citation(QA_POLICY_TEXT, "fabricated quote not in document") is None
+
+
+@pytest.mark.asyncio
+async def test_openrouter_art32_short_ref_maps_to_composite_control(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    await _drain_inline_worker()
+    review_id, tenant_id, _ = await _seed_review(
+        monkeypatch, "openrouter-art32@complibot.local"
+    )
+
+    payload = {
+        "documentType": "processor_dpa",
+        "findings": [
+            {
+                "controlRef": GDPR_SECURITY_SHORT_REF,
+                "kind": "partial",
+                "severity": "medium",
+                "quote": "multi-factor authentication (MFA) to access production systems",
+                "support": "MFA is required for production access.",
+                "title": "MFA for production",
+                "rationale": (
+                    "Access control requires MFA on production systems per security measures."
+                ),
+                "remediationSummary": "Maintain MFA enforcement.",
+            }
+        ],
+    }
+    fake = _FakeHttpClient([_FakeHttpResponse(200, _chat_body(payload))])
+    monkeypatch.setattr(
+        "complibot_worker.pipeline.openrouter_review.create_openrouter_http_client",
+        lambda _s: fake,
+    )
+    monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-not-real")
+    get_settings.cache_clear()
+    await process_message({"reviewId": review_id, "tenantId": tenant_id}, final_attempt=True)
+    get_settings.cache_clear()
+
+    async with SessionLocal() as db:
+        findings = (
+            (await db.execute(select(FindingRow).where(FindingRow.review_id == review_id)))
+            .scalars()
+            .all()
+        )
+        rows = [
+            f for f in findings if f.payload.get("provenance", {}).get("provider") == "openrouter"
+        ]
+        assert len(rows) == 1
+        assert rows[0].payload["controlRef"] == GDPR_SECURITY_COMPOSITE_REF
+
+
+@pytest.mark.asyncio
+async def test_openrouter_discard_reasons_logged_when_all_candidates_dropped(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import logging
+
+    await _drain_inline_worker()
+    review_id, tenant_id, _ = await _seed_review(
+        monkeypatch, "openrouter-discard-log@complibot.local"
+    )
+
+    payload = {
+        "documentType": "processor_dpa",
+        "findings": [
+            {
+                "controlRef": "Art. 999",
+                "kind": "partial",
+                "severity": "high",
+                "quote": DPA_QUOTE,
+                "support": "Unknown control.",
+                "title": "Bad ref",
+                "rationale": "Should be discarded for unknown control ref.",
+            }
+        ],
+    }
+    fake = _FakeHttpClient([_FakeHttpResponse(200, _chat_body(payload))])
+    monkeypatch.setattr(
+        "complibot_worker.pipeline.openrouter_review.create_openrouter_http_client",
+        lambda _s: fake,
+    )
+    monkeypatch.setenv("LLM_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key-not-real")
+    get_settings.cache_clear()
+
+    with caplog.at_level(logging.WARNING):
+        await process_message(
+            {"reviewId": review_id, "tenantId": tenant_id}, final_attempt=True
+        )
+    get_settings.cache_clear()
+
+    assert any(
+        "discarded all model candidates" in record.message for record in caplog.records
+    )
 
 
 def _gap_finding_payload(control_ref: str = GDPR_RETENTION_REF) -> dict:
