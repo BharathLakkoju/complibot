@@ -3,6 +3,14 @@
 }
 
 {$API_DOMAIN} {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+		}
+		issuer acme {
+			dir https://acme.zerossl.com/v2/DV90
+		}
+	}
 	# Every FastAPI path (REST, WS upgrade, docs). Anything else is Next.js.
 	@api path /v1 /v1/* /health /docs /docs/* /redoc /openapi.json
 	handle @api {
