@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 from complibot.config import get_settings
-from complibot.db.models import Document, FindingRow, Review
+from complibot.db.models import Document, FindingRow, Review, ReviewEvent
 from complibot.db.session import SessionLocal
 from complibot.services.queue import _inline_tasks
 from complibot_worker.main import process_message
@@ -16,6 +16,7 @@ from complibot_worker.pipeline.citations import locate_verified_citation
 from complibot_worker.pipeline.openrouter_review import (
     OpenRouterReviewError,
     _build_control_alias_index,
+    _build_prompt,
     _parse_response_payload,
     _resolve_control_ref,
     _word_count,
@@ -330,6 +331,44 @@ def test_resolve_control_ref_art32_maps_to_composite_pack_key() -> None:
     assert ctrl.get("id") == "GDPR-32"
 
 
+def test_build_prompt_lists_control_ids_and_verbatim_instruction() -> None:
+    prompt = _build_prompt(
+        framework_codes=["GDPR"],
+        frameworks_path=str(FRAMEWORKS_PATH),
+        document_text="sample",
+    )
+    assert "GDPR-32 | Art. 32; Art. 28(3)(c)" in prompt
+    assert 'controlRef: copy exactly one control ID from the left column (e.g. "GDPR-32")' in prompt
+    assert "GDPR-5.1.e, GDPR-6, and GDPR-13-14" in prompt
+
+
+def test_resolve_control_ref_lowercase_pack_id() -> None:
+    index = _build_control_alias_index(["GDPR"], str(FRAMEWORKS_PATH))
+    resolved = _resolve_control_ref("gdpr-32", index)
+    assert resolved is not None
+    assert resolved[0] == GDPR_SECURITY_COMPOSITE_REF
+
+
+def test_resolve_control_ref_title_suffix() -> None:
+    index = _build_control_alias_index(["GDPR"], str(FRAMEWORKS_PATH))
+    resolved = _resolve_control_ref("Art. 32 - Security of processing", index)
+    assert resolved is not None
+    assert resolved[0] == GDPR_SECURITY_COMPOSITE_REF
+
+
+def test_resolve_control_ref_art13_unique_article() -> None:
+    index = _build_control_alias_index(["GDPR"], str(FRAMEWORKS_PATH))
+    resolved = _resolve_control_ref("Art. 13", index)
+    assert resolved is not None
+    assert resolved[2].get("id") == "GDPR-13-14"
+
+
+def test_resolve_control_ref_bare_art28_stays_ambiguous() -> None:
+    # Article 28 maps to many controls; bare "Art. 28" must not guess a processor clause.
+    index = _build_control_alias_index(["GDPR"], str(FRAMEWORKS_PATH))
+    assert _resolve_control_ref("Art. 28", index) is None
+
+
 def test_locate_verified_citation_case_and_whitespace_insensitive() -> None:
     span = locate_verified_citation(QA_POLICY_TEXT, "data   processing agreement (dpa)")
     assert span is not None
@@ -430,6 +469,27 @@ async def test_openrouter_discard_reasons_logged_when_all_candidates_dropped(
     get_settings.cache_clear()
 
     assert any("discarded all model candidates" in record.message for record in caplog.records)
+
+    async with SessionLocal() as db:
+        status_evt = (
+            (
+                await db.execute(
+                    select(ReviewEvent)
+                    .where(
+                        ReviewEvent.review_id == review_id,
+                        ReviewEvent.type == "review.status",
+                    )
+                    .order_by(ReviewEvent.seq.desc())
+                    .limit(1)
+                )
+            )
+            .scalars()
+            .one()
+        )
+        payload = status_evt.payload
+        assert payload.get("discardReasons", {}).get("unknown_control_ref") == 1
+        samples = payload.get("discardedControlRefSamples") or []
+        assert any("Art. 999" in sample for sample in samples)
 
 
 def _gap_finding_payload(control_ref: str = GDPR_RETENTION_REF) -> dict:
